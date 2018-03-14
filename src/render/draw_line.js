@@ -33,7 +33,7 @@ export default function drawLine(painter: Painter, sourceCache: SourceCache, lay
 
     const programId =
         dasharray ? 'lineSDF' :
-        image ? 'linePattern' :
+    image && linePattern.constantOr((1: any)) ? 'linePattern' :
         gradient ? 'lineGradient' : 'line';
 
     const context = painter.context;
@@ -68,9 +68,9 @@ export default function drawLine(painter: Painter, sourceCache: SourceCache, lay
         if (dasharray && (programChanged || painter.lineAtlas.dirty)) {
             context.activeTexture.set(gl.TEXTURE0);
             painter.lineAtlas.bind(context);
-        } else if (image && (programChanged || painter.imageManager.dirty)) {
+        } else if (image) {
             context.activeTexture.set(gl.TEXTURE0);
-            painter.imageManager.bind(context);
+            tile.iconAtlasTexture.bind(gl.NEAREST, gl.CLAMP_TO_EDGE);
         }
 
         program.draw(context, gl.TRIANGLES, depthMode,

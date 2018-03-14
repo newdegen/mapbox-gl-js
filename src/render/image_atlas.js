@@ -21,7 +21,8 @@ export class ImagePosition {
     pixelRatio: number;
 
     constructor(paddedRect: Rect, {pixelRatio}: StyleImage) {
-        this.paddedRect = paddedRect;
+        const {x, y, w, h} = paddedRect;
+        this.paddedRect = {x, y, w, h};
         this.pixelRatio = pixelRatio;
     }
 
@@ -50,6 +51,7 @@ export class ImagePosition {
 export default class ImageAtlas {
     image: RGBAImage;
     positions: {[string]: ImagePosition};
+    uploaded: ?boolean;
 
     constructor(images: {[string]: StyleImage}) {
         const positions = {};

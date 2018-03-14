@@ -26,6 +26,16 @@ import type Context from '../../gl/context';
 import type IndexBuffer from '../../gl/index_buffer';
 import type VertexBuffer from '../../gl/vertex_buffer';
 import type {FeatureStates} from '../../source/source_state';
+import type {ImagePosition} from '../../render/image_atlas';
+
+export type LineFeature = {|
+    index: number,
+    sourceLayerIndex: number,
+    geometry: Array<Array<Point>>,
+    properties: Object,
+    type: 1 | 2 | 3,
+    id?: any
+|};
 
 // NOTE ON EXTRUDE SCALE:
 // scale the extrusion vector so that the normal length is this value.
@@ -96,12 +106,15 @@ class LineBucket implements Bucket {
     layers: Array<LineStyleLayer>;
     layerIds: Array<string>;
     stateDependentLayers: Array<any>;
+    features: Array<LineFeature>;
 
     layoutVertexArray: LineLayoutArray;
     layoutVertexBuffer: VertexBuffer;
 
     indexArray: TriangleIndexArray;
     indexBuffer: IndexBuffer;
+
+    imagePositions: {[string]: ImagePosition};
 
     programConfigurations: ProgramConfigurationSet<LineStyleLayer>;
     segments: SegmentVector;
@@ -113,6 +126,7 @@ class LineBucket implements Bucket {
         this.layers = options.layers;
         this.layerIds = this.layers.map(layer => layer.id);
         this.index = options.index;
+        this.features = [];
 
         this.layoutVertexArray = new LineLayoutArray();
         this.indexArray = new TriangleIndexArray();
@@ -121,18 +135,69 @@ class LineBucket implements Bucket {
     }
 
     populate(features: Array<IndexedFeature>, options: PopulateParameters) {
-        for (const {feature, index, sourceLayerIndex} of features) {
-            if (this.layers[0]._featureFilter(new EvaluationParameters(this.zoom), feature)) {
-                const geometry = loadGeometry(feature);
-                this.addFeature(feature, geometry, index);
-                options.featureIndex.insert(feature, geometry, index, sourceLayerIndex, this.index);
+        const icons = options.iconDependencies;
+        this.features = [];
+
+        const dataDrivenPatternLayers = [];
+        for (let i = 0; i < this.layers.length; i++) {
+            const layer = this.layers[i];
+            const linePattern = layer.paint.get('line-pattern');
+            if (linePattern.value.kind === "source" || linePattern.value.kind === "composite") {
+                dataDrivenPatternLayers.push(layer);
+            } else {
+                // add all icons needed for this layer to the tile's IconAtlas dependencies
+                // for non-data-driven line-pattern properties
+                const images = linePattern.property.getPossibleOutputs();
+                for (let i = 0; i < images.length; i++) {
+                    // https://github.com/facebook/flow/issues/4310
+                    icons[(images[i]: any)] = true;
+
+                }
             }
+        }
+
+        for (const {feature, index, sourceLayerIndex} of features) {
+            if (!this.layers[0]._featureFilter({zoom: this.zoom}, feature)) continue;
+            for (let i = 0; i < dataDrivenPatternLayers.length; i++) {
+                const layer = dataDrivenPatternLayers[i];
+                const linePattern = layer.paint.get('line-pattern');
+                const image = linePattern.evaluate(feature);
+                if (image) {
+                    icons[image.min] = true;
+                    icons[image.mid] = true;
+                    icons[image.max] = true;
+                }
+            }
+
+            const geometry = loadGeometry(feature);
+            const lineFeature: LineFeature = {
+                sourceLayerIndex: sourceLayerIndex,
+                index: index,
+                geometry: geometry,
+                properties: feature.properties,
+                type: feature.type
+            };
+
+            if (typeof feature.id !== 'undefined') {
+                lineFeature.id = feature.id;
+            }
+
+            this.features.push(lineFeature);
+            options.featureIndex.insert(feature, geometry, index, sourceLayerIndex, this.index);
         }
     }
 
     update(states: FeatureStates, vtLayer: VectorTileLayer) {
         if (!this.stateDependentLayers.length) return;
         this.programConfigurations.updatePaintArrays(states, vtLayer, this.stateDependentLayers);
+    }
+
+    addFeatures(options: PopulateParameters, imagePositions: {[string]: ImagePosition}) {
+        this.imagePositions = imagePositions;
+        for (const feature of this.features) {
+            const {geometry} = feature;
+            this.addFeature(feature, geometry);
+        }
     }
 
     isEmpty() {
@@ -160,7 +225,7 @@ class LineBucket implements Bucket {
         this.segments.destroy();
     }
 
-    addFeature(feature: VectorTileFeature, geometry: Array<Array<Point>>, index: number) {
+    addFeature(feature: VectorTileFeature | LineFeature, geometry: Array<Array<Point>>, index: number) {
         const layout = this.layers[0].layout;
         const join = layout.get('line-join').evaluate(feature, {});
         const cap = layout.get('line-cap');
@@ -172,7 +237,7 @@ class LineBucket implements Bucket {
         }
     }
 
-    addLine(vertices: Array<Point>, feature: VectorTileFeature, join: string, cap: string, miterLimit: number, roundLimit: number, index: number) {
+    addLine(vertices: Array<Point>, feature: VectorTileFeature | LineFeature, join: string, cap: string, miterLimit: number, roundLimit: number, index: number) {
         let lineDistances = null;
         if (!!feature.properties &&
             feature.properties.hasOwnProperty('mapbox_clip_start') &&
@@ -450,7 +515,7 @@ class LineBucket implements Bucket {
             startOfLine = false;
         }
 
-        this.programConfigurations.populatePaintArrays(this.layoutVertexArray.length, feature, index);
+        this.programConfigurations.populatePaintArrays(this.layoutVertexArray.length, feature, index, this.imagePositions);
     }
 
     /**
@@ -587,6 +652,6 @@ function calculateFullDistance(vertices: Array<Point>, first: number, len: numbe
     return total;
 }
 
-register('LineBucket', LineBucket, {omit: ['layers']});
+register('LineBucket', LineBucket, {omit: ['layers', 'features']});
 
 export default LineBucket;
