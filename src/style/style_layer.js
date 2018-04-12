@@ -25,6 +25,12 @@ import type {
     FilterSpecification
 } from '../style-spec/types';
 
+export type CrossfadeParameters = {
+    fromScale: number,
+    toScale: number,
+    t: number
+};
+
 const TRANSITION_SUFFIX = '-transition';
 
 class StyleLayer extends Evented {
@@ -37,6 +43,7 @@ class StyleLayer extends Evented {
     maxzoom: ?number;
     filter: FilterSpecification | void;
     visibility: 'visible' | 'none';
+    transitionParameters: EvaluationParameters;
 
     _unevaluatedLayout: Layout<any>;
     +layout: mixed;
@@ -89,6 +96,17 @@ class StyleLayer extends Evented {
         }
 
         this._transitioningPaint = this._transitionablePaint.untransitioned();
+    }
+
+    getCrossfadeParameters(): CrossfadeParameters {
+        const p = this.transitionParameters;
+        const z = p.zoom;
+        const fraction = z - Math.floor(z);
+        const t = p.crossFadingFactor();
+
+        return z > p.zoomHistory.lastIntegerZoom ?
+            { fromScale: 2, toScale: 1, t: fraction + (1 - fraction) * t } :
+            { fromScale: 0.5, toScale: 1, t: 1 - (1 - t) * fraction };
     }
 
     getLayoutProperty(name: string) {
@@ -162,6 +180,7 @@ class StyleLayer extends Evented {
     }
 
     recalculate(parameters: EvaluationParameters) {
+        this.transitionParameters = parameters;
         if (this._unevaluatedLayout) {
             (this: any).layout = this._unevaluatedLayout.possiblyEvaluate(parameters);
         }

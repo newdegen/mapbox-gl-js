@@ -21,7 +21,7 @@ import {
 
 import type Context from '../gl/context';
 import type {TypedStyleLayer} from '../style/style_layer/typed_style_layer';
-import type { CrossfadeParameters } from '../style/style_layer/line_style_layer';
+import type { CrossfadeParameters } from '../style/style_layer';
 import type {StructArray, StructArrayMember} from '../util/struct_array';
 import type VertexBuffer from '../gl/vertex_buffer';
 import type Program from '../render/program';
@@ -35,6 +35,7 @@ import type {
 } from '../style-spec/expression';
 import type {PossiblyEvaluated} from '../style/properties';
 import type {FeatureStates} from '../source/source_state';
+import pixelsToTileUnits from '../source/pixels_to_tile_units';
 
 function packColor(color: Color): [number, number] {
     return [
@@ -160,7 +161,8 @@ class CrossFadedConstantBinder<T> implements Binder<T> {
                             program: Program,
                             globals: GlobalProperties,
                             currentValue: PossiblyEvaluatedPropertyValue<T>,
-                            tile: ?Tile) {
+                            tileZoom: number,
+                            tile: Tile) {
         const image: any = currentValue.constantOr(this.value);
         const gl = context.gl;
         if (image && tile && tile.iconAtlas) {
@@ -171,10 +173,20 @@ class CrossFadedConstantBinder<T> implements Binder<T> {
             gl.uniform4fv(program.uniforms.u_pattern_from, (imagePosFrom: any).tl.concat((imagePosFrom: any).br));
             gl.uniform4fv(program.uniforms.u_pattern_to, (imagePosTo: any).tl.concat((imagePosTo: any).br));
 
+            const tileRatio = 1 / pixelsToTileUnits(tile, 1, tileZoom);
             // this assumes all images in the icon atlas texture have the same pixel ratio
-            if (globals.tileRatio) gl.uniform4f(program.uniforms.u_scale, imagePosTo.pixelRatio, globals.tileRatio, image.fromScale, image.toScale);
-            gl.uniform1f(program.uniforms.u_fade, image.t);
+            gl.uniform4f(program.uniforms.u_scale, imagePosTo.pixelRatio, tileRatio, image.fromScale, image.toScale);
 
+            const numTiles = Math.pow(2, tile.tileID.overscaledZ);
+            const tileSizeAtNearestZoom = tile.tileSize * Math.pow(2, tileZoom) / numTiles;
+            const pixelX = tileSizeAtNearestZoom * (tile.tileID.canonical.x + tile.tileID.wrap * numTiles);
+            const pixelY = tileSizeAtNearestZoom * tile.tileID.canonical.y;
+            // split the pixel coord into two pairs of 16 bit numbers. The glsl spec only guarantees 16 bits of precision.
+            gl.uniform2f(program.uniforms.u_pixel_coord_upper, pixelX >> 16, pixelY >> 16);
+            gl.uniform2f(program.uniforms.u_pixel_coord_lower, pixelX & 0xFFFF, pixelY & 0xFFFF);
+
+
+            gl.uniform1f(program.uniforms.u_fade, image.t);
             gl.uniform1i(program.uniforms.u_image, 0);
             context.activeTexture.set(gl.TEXTURE0);
             tile.iconAtlasTexture.bind(gl.LINEAR, gl.CLAMP_TO_EDGE);
@@ -497,16 +509,24 @@ class CrossFadedCompositeBinder<T> implements Binder<T> {
                             program: Program,
                             globals: GlobalProperties,
                             currentValue: PossiblyEvaluatedPropertyValue<T>,
-                            tile: ?Tile,
+                            tileZoom: number,
+                            tile: Tile,
                             crossfade: ?CrossfadeParameters) {
 
         if (tile && crossfade) {
             const gl = context.gl;
             gl.uniform1f(program.uniforms.u_fade, crossfade.t);
-            gl.uniform1i(program.uniforms.u_zoomin, crossfade.fromScale === 2 ? 1 : 0);
-
+            const tileRatio = 1 / pixelsToTileUnits(tile, 1, tileZoom);
             // find a better way to determine pixel ratio of tile iconAtlas images
-            if (globals.tileRatio) gl.uniform4f(program.uniforms.u_scale, browser.devicePixelRatio > 1 ? 2 : 1, globals.tileRatio, crossfade.fromScale, crossfade.toScale);
+            gl.uniform4f(program.uniforms.u_scale, browser.devicePixelRatio > 1 ? 2 : 1, tileRatio, crossfade.fromScale, crossfade.toScale);
+
+            const numTiles = Math.pow(2, tile.tileID.overscaledZ);
+            const tileSizeAtNearestZoom = tile.tileSize * Math.pow(2, tileZoom) / numTiles;
+            const pixelX = tileSizeAtNearestZoom * (tile.tileID.canonical.x + tile.tileID.wrap * numTiles);
+            const pixelY = tileSizeAtNearestZoom * tile.tileID.canonical.y;
+            // split the pixel coord into two pairs of 16 bit numbers. The glsl spec only guarantees 16 bits of precision.
+            gl.uniform2f(program.uniforms.u_pixel_coord_upper, pixelX >> 16, pixelY >> 16);
+            gl.uniform2f(program.uniforms.u_pixel_coord_lower, pixelX & 0xFFFF, pixelY & 0xFFFF);
 
             gl.uniform1i(program.uniforms.u_image, 0);
             context.activeTexture.set(gl.TEXTURE0);
@@ -776,7 +796,8 @@ function paintAttributeName(property, type) {
         'text-halo-width': ['halo_width'],
         'icon-halo-width': ['halo_width'],
         'line-gap-width': ['gapwidth'],
-        'line-pattern': ['pattern_to', 'pattern_from']
+        'line-pattern': ['pattern_to', 'pattern_from'],
+        'fill-pattern': ['pattern_to', 'pattern_from']
     };
     return attributeNameExceptions[property] ||
         [property.replace(`${type}-`, '').replace(/-/g, '_')];
@@ -785,6 +806,10 @@ function paintAttributeName(property, type) {
 function getLayoutException(property) {
     const propertyExceptions = {
         'line-pattern':{
+            'source': PatternLayoutArray,
+            'composite': PatternLayoutArray
+        },
+        'fill-pattern': {
             'source': PatternLayoutArray,
             'composite': PatternLayoutArray
         }

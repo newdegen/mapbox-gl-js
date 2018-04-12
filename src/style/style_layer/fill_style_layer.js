@@ -26,6 +26,7 @@ class FillStyleLayer extends StyleLayer {
     }
 
     recalculate(parameters: EvaluationParameters) {
+        super.recalculate(parameters);
         this.paint = this._transitioningPaint.possiblyEvaluate(parameters);
 
         const outlineColor = this.paint._values['fill-outline-color'];

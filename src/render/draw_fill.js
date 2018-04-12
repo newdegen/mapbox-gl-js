@@ -14,6 +14,7 @@ import type SourceCache from '../source/source_cache';
 import type FillStyleLayer from '../style/style_layer/fill_style_layer';
 import type FillBucket from '../data/bucket/fill_bucket';
 import type {OverscaledTileID} from '../source/tile_id';
+import type {CrossFaded} from '../style/cross_faded';
 
 export default drawFill;
 
@@ -27,7 +28,8 @@ function drawFill(painter: Painter, sourceCache: SourceCache, layer: FillStyleLa
 
     const colorMode = painter.colorModeForRenderPass();
 
-    const pass = (!layer.paint.get('fill-pattern') &&
+    const pattern = layer.paint.get('fill-pattern');
+    const pass = (!(pattern.constantOr(null) || pattern.property.getPossibleOutputs().length) &&
         color.constantOr(Color.transparent).a === 1 &&
         opacity.constantOr(0) === 1) ? 'opaque' : 'translucent';
 
@@ -78,6 +80,14 @@ function drawFillTiles(painter, sourceCache, layer, coords, depthMode, colorMode
 
     for (const coord of coords) {
         const tile = sourceCache.getTile(coord);
+
+        const pattern = layer.paint.get('fill-pattern').constantOr(null);
+        if (pattern && tile.iconAtlas) {
+            const imagePosFrom = tile.iconAtlas.positions[pattern.from],
+                imagePosTo = tile.iconAtlas.positions[pattern.to];
+            if (!imagePosFrom || !imagePosTo) return;
+        }
+
         const bucket: ?FillBucket = (tile.getBucket(layer): any);
         if (!bucket) continue;
 
