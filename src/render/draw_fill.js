@@ -80,12 +80,17 @@ function drawFillTiles(painter, sourceCache, layer, coords, depthMode, colorMode
 
     for (const coord of coords) {
         const tile = sourceCache.getTile(coord);
-
-        const pattern = layer.paint.get('fill-pattern').constantOr(null);
+        const pattern = layer.paint.get('fill-pattern').constantOr((1: any));
+        if (pattern && !tile.iconAtlas) continue;
         if (pattern && tile.iconAtlas) {
-            const imagePosFrom = tile.iconAtlas.positions[pattern.from],
-                imagePosTo = tile.iconAtlas.positions[pattern.to];
-            if (!imagePosFrom || !imagePosTo) return;
+            // pattern is set, but the icon atlas hasn't been populated yet
+            if (!Object.keys(tile.iconAtlas.positions).length) continue;
+            if (pattern.to && pattern.from) {
+                const imagePosFrom = tile.iconAtlas.positions[pattern.from],
+                    imagePosTo = tile.iconAtlas.positions[pattern.to];
+                if (!imagePosFrom || !imagePosTo) continue;
+            }
+
         }
 
         const bucket: ?FillBucket = (tile.getBucket(layer): any);
