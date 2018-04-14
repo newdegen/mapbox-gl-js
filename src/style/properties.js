@@ -429,12 +429,12 @@ type PossiblyEvaluatedValue<T> =
 export class PossiblyEvaluatedPropertyValue<T> {
     property: DataDrivenProperty<T>;
     value: PossiblyEvaluatedValue<T>;
-    globals: EvaluationParameters;
+    parameters: EvaluationParameters;
 
-    constructor(property: DataDrivenProperty<T>, value: PossiblyEvaluatedValue<T>, globals: EvaluationParameters) {
+    constructor(property: DataDrivenProperty<T>, value: PossiblyEvaluatedValue<T>, parameters: EvaluationParameters) {
         this.property = property;
         this.value = value;
-        this.globals = globals;
+        this.parameters = parameters;
     }
 
     isConstant(): boolean {
@@ -450,7 +450,7 @@ export class PossiblyEvaluatedPropertyValue<T> {
     }
 
     evaluate(feature: Feature, featureState: FeatureState): T {
-        return this.property.evaluate(this.value, this.globals, feature, featureState);
+        return this.property.evaluate(this.value, this.parameters, feature, featureState);
     }
 }
 
@@ -560,22 +560,22 @@ export class DataDrivenProperty<T> implements Property<T, PossiblyEvaluatedPrope
         // `Properties#defaultPossiblyEvaluatedValues`, which serves as the prototype of
         // `PossiblyEvaluated#_values`.
         if (a.value.value === undefined || b.value.value === undefined) {
-            return new PossiblyEvaluatedPropertyValue(this, {kind: 'constant', value: (undefined: any)}, a.globals);
+            return new PossiblyEvaluatedPropertyValue(this, {kind: 'constant', value: (undefined: any)}, a.parameters);
         }
 
         const interp: ?(a: T, b: T, t: number) => T = (interpolate: any)[this.specification.type];
         if (interp) {
-            return new PossiblyEvaluatedPropertyValue(this, {kind: 'constant', value: interp(a.value.value, b.value.value, t)}, a.globals);
+            return new PossiblyEvaluatedPropertyValue(this, {kind: 'constant', value: interp(a.value.value, b.value.value, t)}, a.parameters);
         } else {
             return a;
         }
     }
 
-    evaluate(value: PossiblyEvaluatedValue<T>, globals: EvaluationParameters, feature: Feature, featureState: FeatureState): T {
+    evaluate(value: PossiblyEvaluatedValue<T>, parameters: EvaluationParameters, feature: Feature, featureState: FeatureState): T {
         if (value.kind === 'constant') {
             return value.value;
         } else {
-            return value.evaluate(globals, feature, featureState);
+            return value.evaluate(parameters, feature, featureState);
         }
     }
 
