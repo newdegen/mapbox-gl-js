@@ -78,6 +78,11 @@ export default class ImageAtlas {
             const src = images[id];
             const bin = positions[id].paddedRect;
             RGBAImage.copy(src.data, image, {x: 0, y: 0}, {x: bin.x + padding, y: bin.y + padding}, src.data);
+            // Add 1 pixel wrapped padding on each side of the image.
+            RGBAImage.copy(src.data, image, { x: 0, y: bin.h - 1 }, { x: bin.x, y: bin.y - 1 }, { width: bin.w, height: 1 }); // T
+            RGBAImage.copy(src.data, image, { x: 0, y:     0 }, { x: bin.x, y: bin.y + bin.h }, { width: bin.w, height: 1 }); // B
+            RGBAImage.copy(src.data, image, { x: bin.w - 1, y: 0 }, { x: bin.x - 1, y: bin.y }, { width: 1, height: bin.h }); // L
+            RGBAImage.copy(src.data, image, { x: 0,     y: 0 }, { x: bin.x + bin.w, y: bin.y }, { width: 1, height: bin.h }); // R
         }
 
         this.image = image;
