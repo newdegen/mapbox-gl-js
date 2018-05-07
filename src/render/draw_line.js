@@ -29,8 +29,6 @@ export default function drawLine(painter: Painter, sourceCache: SourceCache, lay
     const image = layer.paint.get('line-pattern');
     const gradient = layer.paint.get('line-gradient');
 
-    if (painter.isPatternMissing(image)) return;
-
     const programId =
         dasharray ? 'lineSDF' :
         image && linePattern.property.getPossibleOutputs().length  ? 'linePattern' :

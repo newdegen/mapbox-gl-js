@@ -50,21 +50,35 @@ export class ImagePosition {
 
 export default class ImageAtlas {
     image: RGBAImage;
-    positions: {[string]: ImagePosition};
+    iconPositions: {[string]: ImagePosition};
+    patternPositions: {[string]: ImagePosition};
     uploaded: ?boolean;
 
-    constructor(images: {[string]: StyleImage}) {
-        const positions = {};
+    constructor(icons: {[string]: StyleImage}, patterns: {[string]: StyleImage}) {
+        const iconPositions = {}, patternPositions = {};
+
         const pack = new ShelfPack(0, 0, {autoResize: true});
         const bins = [];
 
-        for (const id in images) {
+        for (const id in icons) {
             const src = images[id];
             const bin = {
                 x: 0,
                 y: 0,
                 w: src.data.width + 2 * padding,
                 h: src.data.height + 2 * padding,
+            };
+            bins.push(bin);
+            positions[id] = new ImagePosition(bin, src);
+        }
+
+        for (const id in patterns) {
+            const src = images[id];
+            const bin = {
+            x: 0,
+            y: 0,
+            w: src.data.width + 2 * padding,
+            h: src.data.height + 2 * padding,
             };
             bins.push(bin);
             positions[id] = new ImagePosition(bin, src);
@@ -86,7 +100,8 @@ export default class ImageAtlas {
         }
 
         this.image = image;
-        this.positions = positions;
+        this.iconPositions = iconPositions;
+        this.patternPositions = patternPositions;
     }
 }
 
