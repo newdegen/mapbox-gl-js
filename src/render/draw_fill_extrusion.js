@@ -1,5 +1,6 @@
 // @flow
 
+import { mat3, mat4, vec3 } from 'gl-matrix';
 import Texture from './texture';
 import Color from '../style-spec/util/color';
 import DepthMode from '../gl/depth_mode';
@@ -88,7 +89,9 @@ function drawExtrusionTiles(painter, source, layer, coords, depthMode, stencilMo
     const context = painter.context;
     const gl = context.gl;
 
-    const image = layer.paint.get('fill-extrusion-pattern');
+    const patternProperty = layer.paint.get('fill-extrusion-pattern');
+    const image = patternProperty.constantOr((1: any));
+    if (image && !tile.imageAtlas) return;
     if (image) {
         if (painter.isPatternMissing(image)) return;
 
