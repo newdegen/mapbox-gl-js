@@ -520,7 +520,7 @@ class CrossFadedCompositeBinder<T> implements Binder<T> {
     }
 
     upload(context: Context) {
-        if (this.zoomInPaintVertexArray && this.zoomOutPaintVertexArray) {
+        if (this.zoomInPaintVertexArray && this.zoomInPaintVertexArray.arrayBuffer && this.zoomOutPaintVertexArray && this.zoomOutPaintVertexArray.arrayBuffer) {
             this.zoomInPaintVertexBuffer = context.createVertexBuffer(this.zoomInPaintVertexArray, this.paintVertexAttributes, this.expression.isStateDependent);
             this.zoomOutPaintVertexBuffer = context.createVertexBuffer(this.zoomOutPaintVertexArray, this.paintVertexAttributes, this.expression.isStateDependent);
         }
