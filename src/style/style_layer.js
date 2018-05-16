@@ -43,7 +43,7 @@ class StyleLayer extends Evented {
     maxzoom: ?number;
     filter: FilterSpecification | void;
     visibility: 'visible' | 'none';
-    transitionParameters: EvaluationParameters;
+    _parameters: EvaluationParameters;
 
     _unevaluatedLayout: Layout<any>;
     +layout: mixed;
@@ -99,7 +99,7 @@ class StyleLayer extends Evented {
     }
 
     getCrossfadeParameters(): CrossfadeParameters {
-        const p = this.transitionParameters;
+        const p = this._parameters;
         const z = p.zoom;
         const fraction = z - Math.floor(z);
         const t = p.crossFadingFactor();
@@ -180,7 +180,7 @@ class StyleLayer extends Evented {
     }
 
     recalculate(parameters: EvaluationParameters) {
-        this.transitionParameters = parameters;
+        this._parameters = parameters;
         if (this._unevaluatedLayout) {
             (this: any).layout = this._unevaluatedLayout.possiblyEvaluate(parameters);
         }

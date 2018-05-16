@@ -71,8 +71,7 @@ class FillBucket implements Bucket {
         const patterns = options.patternDependencies;
         this.features = [];
 
-        for (let i = 0; i < this.layers.length; i++) {
-            const layer = this.layers[i];
+        for (const layer of this.layers) {
             const fillPattern = layer.paint.get('fill-pattern');
             if (fillPattern.value.kind === "source" || fillPattern.value.kind === "composite") {
                 const images = fillPattern.property.getPossibleOutputs();
@@ -80,7 +79,7 @@ class FillBucket implements Bucket {
                     patterns[image] = true;
                 }
             } else {
-                const image = fillPattern.constantOr(null);
+                const image = fillPattern.value.value;
                 if (image) {
                     patterns[image.min] = true;
                     patterns[image.mid] = true;
