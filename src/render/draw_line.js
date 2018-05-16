@@ -31,7 +31,7 @@ export default function drawLine(painter: Painter, sourceCache: SourceCache, lay
 
     const programId =
         dasharray ? 'lineSDF' :
-        image && linePattern.property.getPossibleOutputs().length  ? 'linePattern' :
+        image && image.constantOr((1: any))  ? 'linePattern' :
         gradient ? 'lineGradient' : 'line';
 
     const context = painter.context;

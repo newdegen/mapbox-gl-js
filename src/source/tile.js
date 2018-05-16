@@ -370,6 +370,10 @@ class Tile {
         return this.state === 'loaded' || this.state === 'reloading' || this.state === 'expired';
     }
 
+    patternsLoaded() {
+        return this.imageAtlas && !!Object.keys(this.imageAtlas.patternPositions).length;
+    }
+
     setExpiryData(data: any) {
         const prior = this.expirationTime;
 

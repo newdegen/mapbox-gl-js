@@ -87,17 +87,8 @@ function drawExtrusionTexture(painter, layer) {
 
 function drawExtrusionTiles(painter, source, layer, coords, depthMode, stencilMode, colorMode) {
     const context = painter.context;
-    const gl = context.gl;
-
-    const patternProperty = layer.paint.get('fill-extrusion-pattern');
-    const image = patternProperty.constantOr((1: any));
-    if (image && !tile.imageAtlas) return;
-    if (image) {
-        if (painter.isPatternMissing(image)) return;
-
-        context.activeTexture.set(gl.TEXTURE0);
-        painter.imageManager.bind(context);
-    }
+    const image = layer.paint.get('fill-extrusion-pattern').constantOr((1: any));
+    if (image && !tile.patternsLoaded()) return;
 
     for (const coord of coords) {
         const tile = source.getTile(coord);
