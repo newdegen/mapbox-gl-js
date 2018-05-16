@@ -50,6 +50,8 @@ export default function drawLine(painter: Painter, sourceCache: SourceCache, lay
 
     for (const coord of coords) {
         const tile = sourceCache.getTile(coord);
+        if (image && !tile.patternsLoaded()) continue;
+
         const bucket: ?LineBucket = (tile.getBucket(layer): any);
         if (!bucket) continue;
 

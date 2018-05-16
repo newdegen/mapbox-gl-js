@@ -1,8 +1,7 @@
 // @flow
 
 export type CrossFaded<T> = {
-    from: T,
-    to: T,
+    from: 'min' | 'max',
     min: T,
     mid: T,
     max: T,

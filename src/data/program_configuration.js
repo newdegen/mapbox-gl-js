@@ -168,8 +168,8 @@ class CrossFadedConstantBinder<T> implements Binder<T> {
         const gl = context.gl;
 
         if (image && tile && tile.imageAtlas) {
-            const imagePosFrom = tile.imageAtlas.patternPositions[image.from],
-                imagePosTo = tile.imageAtlas.patternPositions[image.to];
+            const imagePosFrom = tile.imageAtlas.patternPositions[image[image.from]],
+                imagePosTo = tile.imageAtlas.patternPositions[image.mid];
             if (!imagePosFrom || !imagePosTo) return;
 
             gl.uniform4fv(program.uniforms.u_pattern_from, (imagePosFrom: any).tl.concat((imagePosFrom: any).br));
