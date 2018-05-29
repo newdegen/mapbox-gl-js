@@ -330,7 +330,7 @@ export type FillExtrusionLayerSpecification = {|
         "fill-extrusion-color"?: DataDrivenPropertyValueSpecification<ColorSpecification>,
         "fill-extrusion-translate"?: PropertyValueSpecification<[number, number]>,
         "fill-extrusion-translate-anchor"?: PropertyValueSpecification<"map" | "viewport">,
-        "fill-extrusion-pattern"?: PropertyValueSpecification<string>,
+        "fill-extrusion-pattern"?: DataDrivenPropertyValueSpecification<string>,
         "fill-extrusion-height"?: DataDrivenPropertyValueSpecification<number>,
         "fill-extrusion-base"?: DataDrivenPropertyValueSpecification<number>
     |}
