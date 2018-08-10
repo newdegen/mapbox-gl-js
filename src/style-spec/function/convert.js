@@ -231,7 +231,7 @@ function getFunctionType(parameters, propertySpec) {
 }
 
 // "String with {name} token" => ["concat", "String with ", ["get", "name"], " token"]
-function convertTokenString(s) {
+export function convertTokenString(s: string) {
     const result = ['concat'];
     const re = /{([^{}]+)}/g;
     let pos = 0;

@@ -5,7 +5,7 @@ import {
     eachProperty
 } from '../visit';
 import { isExpression } from '../expression';
-import convertFunction from '../function/convert';
+import convertFunction, {convertTokenString} from '../function/convert';
 import convertFilter from '../feature_filter/convert';
 
 import type { StyleSpecification } from '../types';
@@ -25,9 +25,12 @@ export default function(style: StyleSpecification) {
     });
 
     eachProperty(style, {paint: true, layout: true}, ({path, value, reference, set}) => {
-        if (!isExpression(value) && typeof value === 'object' && !Array.isArray(value)) {
+        if (isExpression(value)) return;
+        if (typeof value === 'object' && !Array.isArray(value)) {
             set(convertFunction(value, reference));
             converted.push(path.join('.'));
+        } else if (reference.tokens && typeof value === 'string') {
+            set(convertTokenString(value));
         }
     });
 
