@@ -1,5 +1,23 @@
 import { test } from 'mapbox-gl-js-test';
+import { createFunction } from '../../../src/style-spec/function';
 import convertFunction from '../../../src/style-spec/function/convert';
+import { createExpression } from '../../../src/style-spec/expression';
+import resolveTokens from '../../../src/util/token';
+
+function testEquivalence(t, legacyFunction, propertySpec, inputs) {
+    const legacy = createFunction(legacyFunction, propertySpec);
+    const converted = convertFunction(legacyFunction, propertySpec);
+    const expression = createExpression(converted, propertySpec);
+    t.equal(expression.result, 'success');
+    for (const [globals, properties] of inputs) {
+        const expressionValue = expression.value.evaluate(globals, {properties});
+        let legacyValue = legacy.evaluate(globals, {properties});
+        if (propertySpec.tokens && typeof legacyValue === 'string') {
+            legacyValue = resolveTokens(properties, legacyValue);
+        }
+        t.equal(expressionValue, legacyValue, JSON.stringify({globals, properties}));
+    }
+}
 
 test('convertFunction', (t) => {
     t.test('boolean categorical', (t) => {
@@ -13,13 +31,11 @@ test('convertFunction', (t) => {
             default: 'default'
         };
 
-        t.deepEqual(convertFunction(fn, {}), [
-            'case',
-            ['==', ['get', 'p'], true],
-            'true',
-            ['==', ['get', 'p'], false],
-            'false',
-            'default'
+        testEquivalence(t, fn, {type: 'string'}, [
+            [{}, {p: true}],
+            [{}, {p: false}],
+            [{}, {}],
+            [{}, {p: 'wrong type'}]
         ]);
 
         t.end();
@@ -36,12 +52,14 @@ test('convertFunction', (t) => {
             default: 'default'
         };
 
-        t.deepEqual(convertFunction(fn, {}), [
-            'match',
-            ['get', 'p'],
-            0, '0',
-            1, '1',
-            'default'
+        testEquivalence(t, fn, {type: 'string'}, [
+            [{}, {p: -1}],
+            [{}, {p: 0}],
+            [{}, {p: 0.75}],
+            [{}, {p: 1}],
+            [{}, {p: 2}],
+            [{}, {}],
+            [{}, {p: 'wrong type'}]
         ]);
 
         t.end();
@@ -59,7 +77,7 @@ test('convertFunction', (t) => {
             ]
         };
 
-        const expression = convertFunction(functionValue, {
+        testEquivalence(t, functionValue, {
             type: 'string',
             'property-type': 'data-constant',
             expression: {
@@ -67,33 +85,13 @@ test('convertFunction', (t) => {
                 'parameters': ['zoom']
             },
             tokens: true
-        });
-        t.deepEqual(expression, [
-            'step',
-            ['zoom'],
-            [
-                'concat',
-                'my name is ',
-                ['to-string', ['get', 'name']],
-                '.'
-            ],
-            1,
-            [
-                'concat',
-                ['to-string', ['get', 'a']],
-                ' ',
-                ['to-string', ['get', 'b']],
-                ' ',
-                ['to-string', ['get', 'c']]
-            ],
-            2,
-            'no tokens',
-            3,
-            ['to-string', ['get', 'one_token']],
-            4,
-            ['concat', ['to-string', ['get', 'leading']], ' token'],
-            5,
-            ['concat', 'trailing ', ['to-string', ['get', 'token']]]
+        }, [
+            [{zoom: 0}, {}],
+            [{zoom: 1}, {}],
+            [{zoom: 2}, {}],
+            [{zoom: 3}, {}],
+            [{zoom: 4}, {}],
+            [{zoom: 5}, {}]
         ]);
 
         t.end();
@@ -117,6 +115,7 @@ test('convertFunction', (t) => {
                 'parameters': ['zoom']
             }
         });
+
         t.deepEqual(expression, [
             'step',
             ['zoom'],
@@ -133,10 +132,10 @@ test('convertFunction', (t) => {
     t.test('duplicate interpolate function stops', (t) => {
         const functionValue = {
             stops: [
-                [0, 'a'],
-                [1, 'b'],
-                [1, 'c'],
-                [2, 'd']
+                [0, 10],
+                [1, 20],
+                [1, 25],
+                [2, 30]
             ]
         };
 
@@ -148,16 +147,17 @@ test('convertFunction', (t) => {
                 'parameters': ['zoom']
             }
         });
+
         t.deepEqual(expression, [
             'interpolate',
             ['exponential', 1],
             ['zoom'],
             0,
-            'a',
+            10,
             1,
-            'b',
+            20,
             2,
-            'd'
+            30
         ]);
 
         t.end();
