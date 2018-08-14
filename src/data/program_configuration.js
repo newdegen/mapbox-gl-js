@@ -123,13 +123,13 @@ class ConstantBinder<T> implements Binder<T> {
     }
 
     static serialize(binder: ConstantBinder<T>) {
-        const {value, name, type} = binder;
-        return {value: serialize(value), name, type};
+        const {value, names, type} = binder;
+        return {value: serialize(value), names, type};
     }
 
-    static deserialize(serialized: {value: T, name: string, type: string}) {
-        const {value, name, type} = serialized;
-        return new ConstantBinder(deserialize(value), name, type);
+    static deserialize(serialized: {value: T, names: Array<string>, type: string}) {
+        const {value, names, type} = serialized;
+        return new ConstantBinder(deserialize(value), names, type);
     }
 }
 
@@ -139,14 +139,14 @@ class CrossFadedConstantBinder<T> implements Binder<T> {
     uniformNames: Array<string>;
     patternPositions: {[string]: ?Array<number>};
     type: string;
-    statistics: { max: number };
+    maxValue: number;
 
     constructor(value: T, names: Array<string>, type: string) {
         this.value = value;
         this.names = names;
         this.uniformNames = this.names.map(name =>`u_${name}`);
         this.type = type;
-        this.statistics = { max: -Infinity };
+        this.maxValue = -Infinity;
         this.patternPositions = {patternTo: null, patternFrom: null};
     }
 
@@ -192,7 +192,7 @@ class SourceExpressionBinder<T> implements Binder<T> {
         this.names = names;
         this.type = type;
         this.uniformNames = this.names.map(name =>`a_${name}`);
-        this.maxValue -Infinity;
+        this.maxValue = -Infinity;
         this.paintVertexAttributes = names.map((name) =>
             ({
                 name: `a_${name}`,
@@ -414,7 +414,7 @@ class CrossFadedCompositeBinder<T> implements Binder<T> {
         this.uniformNames = this.names.map(name =>`a_${name}_t`);
         this.useIntegerZoom = useIntegerZoom;
         this.zoom = zoom;
-        this.statistics = { max: -Infinity };
+        this.maxValue = -Infinity;
 
         this.paintVertexAttributes = names.map((name) =>
             ({
