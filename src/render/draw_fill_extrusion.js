@@ -1,6 +1,4 @@
 // @flow
-
-import { mat3, mat4, vec3 } from 'gl-matrix';
 import Texture from './texture';
 import Color from '../style-spec/util/color';
 import DepthMode from '../gl/depth_mode';
@@ -87,16 +85,33 @@ function drawExtrusionTexture(painter, layer) {
 
 function drawExtrusionTiles(painter, source, layer, coords, depthMode, stencilMode, colorMode) {
     const context = painter.context;
-    const image = layer.paint.get('fill-extrusion-pattern').constantOr((1: any));
-    if (image && !tile.patternsLoaded()) return;
+    const gl = context.gl;
+    const patternProperty = layer.paint.get('fill-extrusion-pattern');
+    const image = patternProperty.constantOr((1: any));
+    const crossfade = layer.getCrossfadeParameters();
 
     for (const coord of coords) {
         const tile = source.getTile(coord);
+        if (image && !tile.patternsLoaded()) return;
+
         const bucket: ?FillExtrusionBucket = (tile.getBucket(layer): any);
         if (!bucket) continue;
 
         const programConfiguration = bucket.programConfigurations.get(layer.id);
         const program = painter.useProgram(image ? 'fillExtrusionPattern' : 'fillExtrusion', programConfiguration);
+
+        if (image) {
+            painter.context.activeTexture.set(gl.TEXTURE0);
+            tile.imageAtlasTexture.bind(gl.LINEAR, gl.CLAMP_TO_EDGE);
+            programConfiguration.updatePatternPaintBuffers(crossfade);
+        }
+
+        const constantPattern = patternProperty.constantOr(null);
+        if (constantPattern && tile.imageAtlas) {
+            const posTo = tile.imageAtlas.patternPositions[constantPattern.to];
+            const posFrom = tile.imageAtlas.patternPositions[constantPattern.from];
+            if (posTo && posFrom) programConfiguration.setConstantPatternPositions(posTo, posFrom);
+        }
 
         const matrix = painter.translatePosMatrix(
             coord.posMatrix,
@@ -105,10 +120,11 @@ function drawExtrusionTiles(painter, source, layer, coords, depthMode, stencilMo
             layer.paint.get('fill-extrusion-translate-anchor'));
 
         const uniformValues = image ?
-            fillExtrusionPatternUniformValues(matrix, painter, coord, image, tile) :
+            fillExtrusionPatternUniformValues(matrix, painter, coord, crossfade, tile) :
             fillExtrusionUniformValues(matrix, painter);
 
-        program.draw(context, gl.TRIANGLES, depthMode, stencilMode, colorMode,
+
+        program.draw(context, context.gl.TRIANGLES, depthMode, stencilMode, colorMode,
             uniformValues, layer.id, bucket.layoutVertexBuffer, bucket.indexBuffer,
             bucket.segments, layer.paint, painter.transform.zoom,
             programConfiguration);

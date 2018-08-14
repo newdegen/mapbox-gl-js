@@ -16,13 +16,13 @@ type Rect = {
     h: number
 };
 
+
 export class ImagePosition {
     paddedRect: Rect;
     pixelRatio: number;
 
     constructor(paddedRect: Rect, {pixelRatio}: StyleImage) {
-        const {x, y, w, h} = paddedRect;
-        this.paddedRect = {x, y, w, h};
+        this.paddedRect = paddedRect;
         this.pixelRatio = pixelRatio;
     }
 
@@ -38,6 +38,10 @@ export class ImagePosition {
             this.paddedRect.x + this.paddedRect.w - padding,
             this.paddedRect.y + this.paddedRect.h - padding
         ];
+    }
+
+    get tlbr(): Array<number> {
+        return this.tl.concat(this.br);
     }
 
     get displaySize(): [number, number] {
@@ -59,9 +63,8 @@ export default class ImageAtlas {
 
         const pack = new ShelfPack(0, 0, {autoResize: true});
         const bins = [];
-
         for (const id in icons) {
-            const src = images[id];
+            const src = icons[id];
             const bin = {
                 x: 0,
                 y: 0,
@@ -69,34 +72,44 @@ export default class ImageAtlas {
                 h: src.data.height + 2 * padding,
             };
             bins.push(bin);
-            positions[id] = new ImagePosition(bin, src);
+            iconPositions[id] = new ImagePosition(bin, src);
         }
 
         for (const id in patterns) {
-            const src = images[id];
+            const src = patterns[id];
             const bin = {
-            x: 0,
-            y: 0,
-            w: src.data.width + 2 * padding,
-            h: src.data.height + 2 * padding,
+                x: 0,
+                y: 0,
+                w: src.data.width + 2 * padding,
+                h: src.data.height + 2 * padding,
             };
             bins.push(bin);
-            positions[id] = new ImagePosition(bin, src);
+            patternPositions[id] = new ImagePosition(bin, src);
         }
 
         pack.pack(bins, {inPlace: true});
 
         const image = new RGBAImage({width: pack.w, height: pack.h});
-
-        for (const id in images) {
-            const src = images[id];
-            const bin = positions[id].paddedRect;
+        for (const id in icons) {
+            const src = icons[id];
+            const bin = iconPositions[id].paddedRect;
             RGBAImage.copy(src.data, image, {x: 0, y: 0}, {x: bin.x + padding, y: bin.y + padding}, src.data);
+        }
+
+        for (const id in patterns) {
+            const src = patterns[id];
+            const bin = patternPositions[id].paddedRect;
+            const x = bin.x + padding,
+                y = bin.y + padding,
+                w = src.data.width,
+                h = src.data.height;
+
+            RGBAImage.copy(src.data, image, {x: 0, y: 0}, {x: x, y: y}, src.data);
             // Add 1 pixel wrapped padding on each side of the image.
-            RGBAImage.copy(src.data, image, { x: 0, y: bin.h - 1 }, { x: bin.x, y: bin.y - 1 }, { width: bin.w, height: 1 }); // T
-            RGBAImage.copy(src.data, image, { x: 0, y:     0 }, { x: bin.x, y: bin.y + bin.h }, { width: bin.w, height: 1 }); // B
-            RGBAImage.copy(src.data, image, { x: bin.w - 1, y: 0 }, { x: bin.x - 1, y: bin.y }, { width: 1, height: bin.h }); // L
-            RGBAImage.copy(src.data, image, { x: 0,     y: 0 }, { x: bin.x + bin.w, y: bin.y }, { width: 1, height: bin.h }); // R
+            RGBAImage.copy(src.data, image, { x: 0, y: h - 1 }, { x: x, y: y - 1 }, { width: w, height: 1 }); // T
+            RGBAImage.copy(src.data, image, { x: 0, y:     0 }, { x: x, y: y + h }, { width: w, height: 1 }); // B
+            RGBAImage.copy(src.data, image, { x: w - 1, y: 0 }, { x: x - 1, y: y }, { width: 1, height: h }); // L
+            RGBAImage.copy(src.data, image, { x: 0,     y: 0 }, { x: x + w, y: y }, { width: 1, height: h }); // R
         }
 
         this.image = image;

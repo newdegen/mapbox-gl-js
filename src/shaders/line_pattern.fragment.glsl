@@ -1,6 +1,6 @@
 uniform vec2 u_texsize;
 uniform float u_fade;
-uniform vec4 u_scale;
+uniform mediump vec4 u_scale;
 
 uniform sampler2D u_image;
 
@@ -9,8 +9,8 @@ varying vec2 v_width2;
 varying float v_linesofar;
 varying float v_gamma_scale;
 
-#pragma mapbox: define mediump vec4 pattern_from
-#pragma mapbox: define mediump vec4 pattern_to
+#pragma mapbox: define lowp vec4 pattern_from
+#pragma mapbox: define lowp vec4 pattern_to
 #pragma mapbox: define lowp float blur
 #pragma mapbox: define lowp float opacity
 
@@ -27,15 +27,15 @@ void main() {
     vec2 pattern_br_b = pattern_to.zw;
 
     float pixelRatio = u_scale.x;
-    float tileRatio = u_scale.y;
+    float tileZoomRatio = u_scale.y;
     float fromScale = u_scale.z;
     float toScale = u_scale.w;
 
     vec2 display_size_a = vec2((pattern_br_a.x - pattern_tl_a.x) / pixelRatio, (pattern_br_a.y - pattern_tl_a.y) / pixelRatio);
     vec2 display_size_b = vec2((pattern_br_b.x - pattern_tl_b.x) / pixelRatio, (pattern_br_b.y - pattern_tl_b.y) / pixelRatio);
 
-    vec2 pattern_size_a = vec2(display_size_a.x * fromScale / tileRatio, display_size_a.y);
-    vec2 pattern_size_b = vec2(display_size_b.x * toScale / tileRatio, display_size_b.y);
+    vec2 pattern_size_a = vec2(display_size_a.x * fromScale / tileZoomRatio, display_size_a.y);
+    vec2 pattern_size_b = vec2(display_size_b.x * toScale / tileZoomRatio, display_size_b.y);
 
     // Calculate the distance of the pixel from the line in pixels.
     float dist = length(v_normal) * v_width2.s;

@@ -1,6 +1,6 @@
 // @flow
 
-import { patternUniformValues } from './pattern';
+import { bgPatternUniformValues } from './pattern';
 import {
     Uniform1i,
     Uniform1f,
@@ -85,7 +85,7 @@ const backgroundPatternUniformValues = (
     image: CrossFaded<string>,
     tile: {tileID: OverscaledTileID, tileSize: number}
 ): UniformValues<BackgroundPatternUniformsType> => extend(
-    patternUniformValues(image, painter, tile),
+    bgPatternUniformValues(image, painter, tile),
     {
         'u_matrix': matrix,
         'u_opacity': opacity

@@ -26,12 +26,15 @@ export default function drawLine(painter: Painter, sourceCache: SourceCache, lay
     const colorMode = painter.colorModeForRenderPass();
 
     const dasharray = layer.paint.get('line-dasharray');
-    const image = layer.paint.get('line-pattern');
+    const patternProperty = layer.paint.get('line-pattern');
+    const image = patternProperty.constantOr((1: any));
+
     const gradient = layer.paint.get('line-gradient');
+    const crossfade = layer.getCrossfadeParameters();
 
     const programId =
         dasharray ? 'lineSDF' :
-        image && image.constantOr((1: any))  ? 'linePattern' :
+        image ? 'linePattern' :
         gradient ? 'lineGradient' : 'line';
 
     const context = painter.context;
@@ -50,6 +53,7 @@ export default function drawLine(painter: Painter, sourceCache: SourceCache, lay
 
     for (const coord of coords) {
         const tile = sourceCache.getTile(coord);
+
         if (image && !tile.patternsLoaded()) continue;
 
         const bucket: ?LineBucket = (tile.getBucket(layer): any);
@@ -60,8 +64,15 @@ export default function drawLine(painter: Painter, sourceCache: SourceCache, lay
         const program = painter.useProgram(programId, programConfiguration);
         const programChanged = firstTile || program.program !== prevProgram;
 
+        const constantPattern = patternProperty.constantOr(null);
+        if (constantPattern && tile.imageAtlas) {
+            const posTo = tile.imageAtlas.patternPositions[constantPattern.to];
+            const posFrom = tile.imageAtlas.patternPositions[constantPattern.from];
+            if (posTo && posFrom) programConfiguration.setConstantPatternPositions(posTo, posFrom);
+        }
+
         const uniformValues = dasharray ? lineSDFUniformValues(painter, tile, layer, dasharray) :
-            image ? linePatternUniformValues(painter, tile, layer, image) :
+            image ? linePatternUniformValues(painter, tile, layer, crossfade) :
             gradient ? lineGradientUniformValues(painter, tile, layer) :
             lineUniformValues(painter, tile, layer);
 
@@ -70,7 +81,8 @@ export default function drawLine(painter: Painter, sourceCache: SourceCache, lay
             painter.lineAtlas.bind(context);
         } else if (image) {
             context.activeTexture.set(gl.TEXTURE0);
-            tile.iconAtlasTexture.bind(gl.NEAREST, gl.CLAMP_TO_EDGE);
+            tile.imageAtlasTexture.bind(gl.LINEAR, gl.CLAMP_TO_EDGE);
+            programConfiguration.updatePatternPaintBuffers(crossfade);
         }
 
         program.draw(context, gl.TRIANGLES, depthMode,

@@ -130,18 +130,9 @@ class LineBucket implements Bucket {
 
         for (const layer of this.layers) {
             const linePattern = layer.paint.get('line-pattern');
-            if (linePattern.value.kind === "source" || linePattern.value.kind === "composite") {
-                const images = linePattern.property.getPossibleOutputs();
-                for (const image of images) {
-                    patterns[image] = true;
-                }
-            } else {
-                const image = linePattern.constantOr(null);
-                if (image) {
-                    patterns[image.min] = true;
-                    patterns[image.mid] = true;
-                    patterns[image.max] = true;
-                }
+            const images = linePattern.property.getPossibleOutputs();
+            for (const image of images) {
+                patterns[image] = true;
             }
         }
 

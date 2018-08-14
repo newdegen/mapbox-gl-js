@@ -158,6 +158,7 @@ uniform ${precision} ${type} u_${name};
 `;
             } else /* if (operation === 'initialize') */ {
                 if (unpackType === 'vec4') {
+                    // vec4 attributes are only used for cross-faded properties, and are not packed
                     return `
 #ifndef HAS_UNIFORM_u_${name}
     ${name} = a_${name};

@@ -7,8 +7,8 @@ varying vec2 v_pos_a;
 varying vec2 v_pos_b;
 
 #pragma mapbox: define lowp float opacity
-#pragma mapbox: define mediump vec4 pattern_from
-#pragma mapbox: define mediump vec4 pattern_to
+#pragma mapbox: define lowp vec4 pattern_from
+#pragma mapbox: define lowp vec4 pattern_to
 
 void main() {
     #pragma mapbox: initialize lowp float opacity

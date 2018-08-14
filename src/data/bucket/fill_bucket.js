@@ -73,18 +73,9 @@ class FillBucket implements Bucket {
 
         for (const layer of this.layers) {
             const fillPattern = layer.paint.get('fill-pattern');
-            if (fillPattern.value.kind === "source" || fillPattern.value.kind === "composite") {
-                const images = fillPattern.property.getPossibleOutputs();
-                for (const image of images) {
-                    patterns[image] = true;
-                }
-            } else {
-                const image = fillPattern.value.value;
-                if (image) {
-                    patterns[image.min] = true;
-                    patterns[image.mid] = true;
-                    patterns[image.max] = true;
-                }
+            const images = fillPattern.property.getPossibleOutputs();
+            for (const image of images) {
+                patterns[image] = true;
             }
         }
 

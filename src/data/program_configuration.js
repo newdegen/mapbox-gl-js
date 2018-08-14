@@ -6,15 +6,14 @@ import { supportsPropertyExpression } from '../style-spec/util/properties';
 import { register, serialize, deserialize } from '../util/web_worker_transfer';
 import { PossiblyEvaluatedPropertyValue } from '../style/properties';
 import { StructArrayLayout1f4, StructArrayLayout2f8, StructArrayLayout4f16, PatternLayoutArray } from './array_types';
-import browser from '../util/browser';
 
-import type Tile from '../source/tile';
 import EvaluationParameters from '../style/evaluation_parameters';
 import FeaturePositionMap from './feature_position_map';
 import {
     Uniform,
     Uniform1f,
     UniformColor,
+    Uniform4f,
     type UniformBindings,
     type UniformLocations
 } from '../render/uniform_binding';
@@ -24,7 +23,6 @@ import type {TypedStyleLayer} from '../style/style_layer/typed_style_layer';
 import type { CrossfadeParameters } from '../style/style_layer';
 import type {StructArray, StructArrayMember} from '../util/struct_array';
 import type VertexBuffer from '../gl/vertex_buffer';
-import type Program from '../render/program';
 import type {ImagePosition} from '../render/image_atlas';
 import type {
     Feature,
@@ -35,7 +33,6 @@ import type {
 } from '../style-spec/expression';
 import type {PossiblyEvaluated} from '../style/properties';
 import type {FeatureStates} from '../source/source_state';
-import pixelsToTileUnits from '../source/pixels_to_tile_units';
 
 function packColor(color: Color): [number, number] {
     return [
@@ -74,7 +71,7 @@ function packColor(color: Color): [number, number] {
 
 interface Binder<T> {
     maxValue: number;
-    uniformName: string;
+    uniformNames: Array<string>;
 
     populatePaintArray(length: number, feature: Feature, imagePositions: {[string]: ImagePosition}): void;
     updatePaintArray(start: number, length: number, feature: Feature, featureState: FeatureState, imagePositions: {[string]: ImagePosition}): void;
@@ -82,9 +79,10 @@ interface Binder<T> {
     destroy(): void;
 
     defines(): Array<string>;
+    setConstantPatternPositions(posTo: ImagePosition, posFrom: ImagePosition): void;
 
     setUniforms(context: Context, uniform: Uniform<*>, globals: GlobalProperties,
-        currentValue: PossiblyEvaluatedPropertyValue<T>): void;
+        currentValue: PossiblyEvaluatedPropertyValue<T>, uniformName: string): void;
 
     getBinding(context: Context, location: WebGLUniformLocation): $Subtype<Uniform<*>>;
 }
@@ -94,12 +92,12 @@ class ConstantBinder<T> implements Binder<T> {
     names: Array<string>;
     maxValue: number;
     type: string;
-    uniformName: string;
+    uniformNames: Array<string>;
 
     constructor(value: T, names: Array<string>, type: string) {
         this.value = value;
         this.names = names;
-        this.uniformName = `u_${this.names[0]}`;
+        this.uniformNames = this.names.map(name =>`u_${name}`);
         this.type = type;
         this.maxValue = -Infinity;
     }
@@ -107,7 +105,7 @@ class ConstantBinder<T> implements Binder<T> {
     defines() {
         return this.names.map(name => `#define HAS_UNIFORM_u_${name}`);
     }
-
+    setConstantPatternPositions() {}
     populatePaintArray() {}
     updatePaintArray() {}
     upload() {}
@@ -138,15 +136,18 @@ class ConstantBinder<T> implements Binder<T> {
 class CrossFadedConstantBinder<T> implements Binder<T> {
     value: T;
     names: Array<string>;
+    uniformNames: Array<string>;
+    patternPositions: {[string]: ?Array<number>};
     type: string;
     statistics: { max: number };
 
     constructor(value: T, names: Array<string>, type: string) {
         this.value = value;
         this.names = names;
-        this.uniformName = `u_${this.names[0]}`;
+        this.uniformNames = this.names.map(name =>`u_${name}`);
         this.type = type;
         this.statistics = { max: -Infinity };
+        this.patternPositions = {patternTo: null, patternFrom: null};
     }
 
     defines() {
@@ -158,51 +159,27 @@ class CrossFadedConstantBinder<T> implements Binder<T> {
     upload() {}
     destroy() {}
 
-    setTileSpecificUniforms(context: Context,
-                            program: Program,
-                            globals: GlobalProperties,
-                            currentValue: PossiblyEvaluatedPropertyValue<T>,
-                            tileZoom: number,
-                            tile: Tile) {
-        const image: any = currentValue.constantOr(this.value);
-        const gl = context.gl;
-
-        if (image && tile && tile.imageAtlas) {
-            const imagePosFrom = tile.imageAtlas.patternPositions[image[image.from]],
-                imagePosTo = tile.imageAtlas.patternPositions[image.mid];
-            if (!imagePosFrom || !imagePosTo) return;
-
-            gl.uniform4fv(program.uniforms.u_pattern_from, (imagePosFrom: any).tl.concat((imagePosFrom: any).br));
-            gl.uniform4fv(program.uniforms.u_pattern_to, (imagePosTo: any).tl.concat((imagePosTo: any).br));
-
-            const tileRatio = 1 / pixelsToTileUnits(tile, 1, tileZoom);
-            // this assumes all images in the icon atlas texture have the same pixel ratio
-            gl.uniform4f(program.uniforms.u_scale, imagePosTo.pixelRatio, tileRatio, image.fromScale, image.toScale);
-
-            const numTiles = Math.pow(2, tile.tileID.overscaledZ);
-            const tileSizeAtNearestZoom = tile.tileSize * Math.pow(2, tileZoom) / numTiles;
-            const pixelX = tileSizeAtNearestZoom * (tile.tileID.canonical.x + tile.tileID.wrap * numTiles);
-            const pixelY = tileSizeAtNearestZoom * tile.tileID.canonical.y;
-            // split the pixel coord into two pairs of 16 bit numbers. The glsl spec only guarantees 16 bits of precision.
-            gl.uniform2f(program.uniforms.u_pixel_coord_upper, pixelX >> 16, pixelY >> 16);
-            gl.uniform2f(program.uniforms.u_pixel_coord_lower, pixelX & 0xFFFF, pixelY & 0xFFFF);
-
-
-            gl.uniform1f(program.uniforms.u_fade, image.t);
-            gl.uniform1i(program.uniforms.u_image, 0);
-            context.activeTexture.set(gl.TEXTURE0);
-            tile.imageAtlasTexture.bind(gl.LINEAR, gl.CLAMP_TO_EDGE);
-            gl.uniform2fv(program.uniforms.u_texsize, tile.imageAtlasTexture.size);
-        }
+    setConstantPatternPositions(posTo: ImagePosition, posFrom: ImagePosition) {
+        this.patternPositions.patternTo = posTo.tlbr;
+        this.patternPositions.patternFrom = posFrom.tlbr;
     }
 
-    setUniforms() {}
+    setUniforms(context: Context, uniform: Uniform<*>, globals: GlobalProperties,
+                currentValue: PossiblyEvaluatedPropertyValue<T>, uniformName: string) {
+        const pos = this.patternPositions;
+        if (uniformName === "u_pattern_to" && pos.patternTo) uniform.set(pos.patternTo);
+        if (uniformName === "u_pattern_from" && pos.patternFrom) uniform.set(pos.patternFrom);
+    }
+
+    getBinding(context: Context, location: WebGLUniformLocation): $Subtype<Uniform<any>> {
+        return new Uniform4f(context, location);
+    }
 }
 
 class SourceExpressionBinder<T> implements Binder<T> {
     expression: SourceExpression;
     names: Array<string>;
-    uniformName: string;
+    uniformNames: Array<string>;
     type: string;
     maxValue: number;
 
@@ -214,7 +191,7 @@ class SourceExpressionBinder<T> implements Binder<T> {
         this.expression = expression;
         this.names = names;
         this.type = type;
-        this.uniformName = `a_${names[0]}`;
+        this.uniformNames = this.names.map(name =>`a_${name}`);
         this.maxValue -Infinity;
         this.paintVertexAttributes = names.map((name) =>
             ({
@@ -230,6 +207,8 @@ class SourceExpressionBinder<T> implements Binder<T> {
     defines() {
         return [];
     }
+
+    setConstantPatternPositions() {}
 
     populatePaintArray(newLength: number, feature: Feature) {
         const paintArray = this.paintVertexArray;
@@ -299,7 +278,7 @@ class SourceExpressionBinder<T> implements Binder<T> {
 class CompositeExpressionBinder<T> implements Binder<T> {
     expression: CompositeExpression;
     names: Array<string>;
-    uniformName: string;
+    uniformNames: Array<string>;
     type: string;
     useIntegerZoom: boolean;
     zoom: number;
@@ -312,7 +291,7 @@ class CompositeExpressionBinder<T> implements Binder<T> {
     constructor(expression: CompositeExpression, names: Array<string>, type: string, useIntegerZoom: boolean, zoom: number, layout: Class<StructArray>) {
         this.expression = expression;
         this.names = names;
-        this.uniformName = `a_${this.names[0]}_t`;
+        this.uniformNames = this.names.map(name =>`a_${name}_t`);
         this.type = type;
         this.useIntegerZoom = useIntegerZoom;
         this.zoom = zoom;
@@ -332,6 +311,8 @@ class CompositeExpressionBinder<T> implements Binder<T> {
     defines() {
         return [];
     }
+
+    setConstantPatternPositions() {}
 
     populatePaintArray(newLength: number, feature: Feature) {
         const paintArray = this.paintVertexArray;
@@ -413,6 +394,7 @@ class CompositeExpressionBinder<T> implements Binder<T> {
 class CrossFadedCompositeBinder<T> implements Binder<T> {
     expression: CompositeExpression;
     names: Array<string>;
+    uniformNames: Array<string>;
     type: string;
     useIntegerZoom: boolean;
     zoom: number;
@@ -429,6 +411,7 @@ class CrossFadedCompositeBinder<T> implements Binder<T> {
         this.expression = expression;
         this.names = names;
         this.type = type;
+        this.uniformNames = this.names.map(name =>`a_${name}_t`);
         this.useIntegerZoom = useIntegerZoom;
         this.zoom = zoom;
         this.statistics = { max: -Infinity };
@@ -450,6 +433,8 @@ class CrossFadedCompositeBinder<T> implements Binder<T> {
         return [];
     }
 
+    setConstantPatternPositions() {}
+
     populatePaintArray(length: number, feature: Feature, imagePositions: {[string]: ImagePosition}) {
         // We populate two paint arrays because, for cross-faded properties, we don't know which direction
         // we're cross-fading to at layout time. In order to keep vertex attributes to a minimum and not pass
@@ -466,6 +451,7 @@ class CrossFadedCompositeBinder<T> implements Binder<T> {
         const min = this.expression.evaluate({zoom: this.zoom - 1}, feature);
         const mid = this.expression.evaluate({zoom: this.zoom }, feature);
         const max = this.expression.evaluate({zoom: this.zoom + 1}, feature);
+
         if (imagePositions) {
             const imageMin = imagePositions[min];
             const imageMid = imagePositions[mid];
@@ -532,37 +518,13 @@ class CrossFadedCompositeBinder<T> implements Binder<T> {
 
     }
 
-    setTileSpecificUniforms(context: Context,
-                            program: Program,
-                            globals: GlobalProperties,
-                            currentValue: PossiblyEvaluatedPropertyValue<T>,
-                            tileZoom: number,
-                            tile: Tile,
-                            crossfade: ?CrossfadeParameters) {
-
-        if (tile && crossfade) {
-            const gl = context.gl;
-            gl.uniform1f(program.uniforms.u_fade, crossfade.t);
-            const tileRatio = 1 / pixelsToTileUnits(tile, 1, tileZoom);
-            // find a better way to determine pixel ratio of tile imageAtlas images
-            gl.uniform4f(program.uniforms.u_scale, browser.devicePixelRatio > 1 ? 2 : 1, tileRatio, crossfade.fromScale, crossfade.toScale);
-
-            const numTiles = Math.pow(2, tile.tileID.overscaledZ);
-            const tileSizeAtNearestZoom = tile.tileSize * Math.pow(2, tileZoom) / numTiles;
-            const pixelX = tileSizeAtNearestZoom * (tile.tileID.canonical.x + tile.tileID.wrap * numTiles);
-            const pixelY = tileSizeAtNearestZoom * tile.tileID.canonical.y;
-            // split the pixel coord into two pairs of 16 bit numbers. The glsl spec only guarantees 16 bits of precision.
-            gl.uniform2f(program.uniforms.u_pixel_coord_upper, pixelX >> 16, pixelY >> 16);
-            gl.uniform2f(program.uniforms.u_pixel_coord_lower, pixelX & 0xFFFF, pixelY & 0xFFFF);
-
-            gl.uniform1i(program.uniforms.u_image, 0);
-            context.activeTexture.set(gl.TEXTURE0);
-            tile.imageAtlasTexture.bind(gl.LINEAR, gl.CLAMP_TO_EDGE);
-            gl.uniform2fv(program.uniforms.u_texsize, tile.imageAtlasTexture.size);
-        }
+    setUniforms(context: Context, uniform: Uniform<*>): void {
+        uniform.set(0);
     }
 
-    setUniforms() {}
+    getBinding(context: Context, location: WebGLUniformLocation): $Subtype<Uniform<any>> {
+        return new Uniform1f(context, location);
+    }
 }
 
 /**
@@ -656,6 +618,12 @@ export default class ProgramConfiguration {
         }
         this._bufferOffset = newLength;
     }
+    setConstantPatternPositions(posTo: ImagePosition, posFrom: ImagePosition) {
+        for (const property in this.binders) {
+            const binder = this.binders[property];
+            binder.setConstantPatternPositions(posTo, posFrom);
+        }
+    }
 
     updatePaintArrays(featureStates: FeatureStates, vtLayer: VectorTileLayer, layer: TypedStyleLayer, imagePositions: {[string]: ImagePosition}): boolean {
         let dirty: boolean = false;
@@ -697,7 +665,9 @@ export default class ProgramConfiguration {
         const result = {};
         for (const property in this.binders) {
             const binder = this.binders[property];
-            result[binder.uniformName] = binder.getBinding(context, locations[binder.uniformName]);
+            for (const name of binder.uniformNames) {
+                result[name] = binder.getBinding(context, locations[name]);
+            }
         }
         return result;
     }
@@ -708,14 +678,9 @@ export default class ProgramConfiguration {
 
         for (const property in this.binders) {
             const binder = this.binders[property];
-            binder.setUniforms(context, uniformBindings[binder.uniformName], globals, properties.get(property));
-        }
-    }
-
-    setTileSpecificUniforms<Properties: Object>(context: Context, program: Program, properties: PossiblyEvaluated<Properties>, globals: GlobalProperties, tile: ?Tile, crossfade: ?CrossfadeParameters) {
-        for (const property in this.binders) {
-            const binder = this.binders[property];
-            binder.setTileSpecificUniforms(context, program, globals, properties.get(property), tile, crossfade);
+            for (const uniformName of binder.uniformNames) {
+                binder.setUniforms(context, uniformBindings[uniformName], globals, properties.get(property), uniformName);
+            }
         }
     }
 
@@ -776,7 +741,7 @@ export class ProgramConfigurationSet<Layer: TypedStyleLayer> {
         this.needsUpload = false;
     }
 
-    populatePaintArrays(length: number, feature: Feature, index: number, imagePositions: ?{[string]: ImagePosition}) {
+    populatePaintArrays(length: number, feature: Feature, index: number, imagePositions: {[string]: ImagePosition}) {
         for (const key in this.programConfigurations) {
             this.programConfigurations[key].populatePaintArrays(length, feature, index, imagePositions);
         }

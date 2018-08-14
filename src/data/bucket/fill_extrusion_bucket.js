@@ -87,18 +87,9 @@ class FillExtrusionBucket implements Bucket {
         for (let i = 0; i < this.layers.length; i++) {
             const layer = this.layers[i];
             const fillExtrusionPattern = layer.paint.get('fill-extrusion-pattern');
-            if (fillExtrusionPattern.value.kind === "source" || fillExtrusionPattern.value.kind === "composite") {
-                const images = fillExtrusionPattern.property.getPossibleOutputs();
-                for (const image of images) {
-                    patterns[image] = true;
-                }
-            } else {
-                const image = fillExtrusionPattern.constantOr(null);
-                if (image) {
-                    patterns[image.min] = true;
-                    patterns[image.mid] = true;
-                    patterns[image.max] = true;
-                }
+            const images = fillExtrusionPattern.property.getPossibleOutputs();
+            for (const image of images) {
+                patterns[image] = true;
             }
         }
 

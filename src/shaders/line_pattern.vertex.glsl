@@ -18,8 +18,8 @@ attribute vec4 a_pos_normal;
 attribute vec4 a_data;
 
 uniform mat4 u_matrix;
-uniform mediump float u_ratio;
 uniform vec2 u_gl_units_to_pixels;
+uniform mediump float u_ratio;
 
 varying vec2 v_normal;
 varying vec2 v_width2;
@@ -31,8 +31,8 @@ varying float v_gamma_scale;
 #pragma mapbox: define lowp float offset
 #pragma mapbox: define mediump float gapwidth
 #pragma mapbox: define mediump float width
-#pragma mapbox: define mediump vec4 pattern_from
-#pragma mapbox: define mediump vec4 pattern_to
+#pragma mapbox: define lowp vec4 pattern_from
+#pragma mapbox: define lowp vec4 pattern_to
 
 void main() {
     #pragma mapbox: initialize lowp float blur
@@ -46,7 +46,7 @@ void main() {
     vec2 a_extrude = a_data.xy - 128.0;
     float a_direction = mod(a_data.z, 4.0) - 1.0;
     float a_linesofar = (floor(a_data.z / 4.0) + a_data.w * 64.0) * LINE_DISTANCE_SCALE;
-
+    // float tileRatio = u_scale.y;
     vec2 pos = a_pos_normal.xy;
 
     // x is 1 if it's a round cap, 0 otherwise
