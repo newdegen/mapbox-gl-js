@@ -190,7 +190,7 @@ export class Placement {
 
         const collisionGroup = this.collisionGroups.get(bucket.sourceID);
 
-        if (!bucket.collisionArrays) {
+        if (!bucket.collisionArrays && collisionBoxArray) {
             bucket.deserializeCollisionBoxes(collisionBoxArray);
         }
 
@@ -376,7 +376,7 @@ export class Placement {
                 iconAllowOverlap && (textAllowOverlap || !bucket.hasTextData() || layout.get('text-optional')),
                 true);
 
-        if (!bucket.collisionArrays && (bucket.hasCollisionBoxData() || bucket.hasCollisionCircleData())) {
+        if (!bucket.collisionArrays && collisionBoxArray && (bucket.hasCollisionBoxData() || bucket.hasCollisionCircleData())) {
             bucket.deserializeCollisionBoxes(collisionBoxArray);
         }
 
