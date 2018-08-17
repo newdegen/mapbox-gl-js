@@ -578,10 +578,6 @@ export class DataDrivenProperty<T> implements Property<T, PossiblyEvaluatedPrope
             return value.evaluate(parameters, feature, featureState);
         }
     }
-
-    getPossibleOutputs(): Array<any> {
-        return [];
-    }
 }
 
 /**
@@ -592,18 +588,13 @@ export class DataDrivenProperty<T> implements Property<T, PossiblyEvaluatedPrope
  */
 
 export class CrossFadedDataDrivenProperty<T> extends DataDrivenProperty<?CrossFaded<T>> {
-    possibleOutputs: Array<T>;
 
     possiblyEvaluate(value: PropertyValue<?CrossFaded<T>, PossiblyEvaluatedPropertyValue<?CrossFaded<T>>>, parameters: EvaluationParameters): PossiblyEvaluatedPropertyValue<?CrossFaded<T>> {
-        this.possibleOutputs = value.expression && (value.expression.kind === "source" || value.expression.kind === "composite") ?
-            value.expression.getPossibleOutputs() : [];
-
         if (value.value === undefined) {
             return new PossiblyEvaluatedPropertyValue(this, {kind: 'constant', value: undefined}, parameters);
         } else if (value.expression.kind === 'constant') {
             const constantValue = value.expression.evaluate(parameters);
             const constant = this._calculate(constantValue, constantValue, constantValue, parameters);
-            this.possibleOutputs = [constant.to, constant.from];
             return new PossiblyEvaluatedPropertyValue(this, {kind: 'constant', value: constant}, parameters);
         } else if (value.expression.kind === 'camera') {
             const cameraVal = this._calculate(
@@ -611,7 +602,6 @@ export class CrossFadedDataDrivenProperty<T> extends DataDrivenProperty<?CrossFa
                     value.expression.evaluate({zoom: parameters.zoom}),
                     value.expression.evaluate({zoom: parameters.zoom + 1.0}),
                     parameters);
-            this.possibleOutputs = [cameraVal.to, cameraVal.from];
             return new PossiblyEvaluatedPropertyValue(this, {kind: 'constant', value: cameraVal}, parameters);
         } else {
             // source or composite expression
@@ -619,9 +609,6 @@ export class CrossFadedDataDrivenProperty<T> extends DataDrivenProperty<?CrossFa
         }
     }
 
-    getPossibleOutputs(): Array<T> {
-        return this.possibleOutputs;
-    }
 
     evaluate(value: PossiblyEvaluatedValue<?CrossFaded<T>>, globals: EvaluationParameters, feature: Feature, featureState: FeatureState): ?CrossFaded<T> {
         if (value.kind === 'source') {

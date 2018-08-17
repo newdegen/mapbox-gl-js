@@ -87,7 +87,7 @@ function drawExtrusionTiles(painter, source, layer, coords, depthMode, stencilMo
     const context = painter.context;
     const gl = context.gl;
     const patternProperty = layer.paint.get('fill-extrusion-pattern');
-    const image = patternProperty.constantOr((1:any));
+    const image = patternProperty.constantOr((1: any));
     const crossfade = layer.getCrossfadeParameters();
 
     for (const coord of coords) {

@@ -70,10 +70,6 @@ export class StyleExpression {
         return this.expression.evaluate(this._evaluator);
     }
 
-    getPossibleOutputs(): Array<any> {
-        return this.expression.possibleOutputs();
-    }
-
     evaluate(globals: GlobalProperties, feature?: Feature, featureState?: FeatureState): any {
         if (!this._evaluator) {
             this._evaluator = new EvaluationContext();
@@ -147,10 +143,6 @@ export class ZoomConstantExpression<Kind> {
     evaluate(globals: GlobalProperties, feature?: Feature, featureState?: FeatureState): any {
         return this._styleExpression.evaluate(globals, feature, featureState);
     }
-
-    getPossibleOutputs(): Array<any> {
-        return this._styleExpression.getPossibleOutputs();
-    }
 }
 
 export class ZoomDependentExpression<Kind> {
@@ -186,10 +178,6 @@ export class ZoomDependentExpression<Kind> {
             return 0;
         }
     }
-
-    getPossibleOutputs(): Array<any> {
-        return this._styleExpression.getPossibleOutputs();
-    }
 }
 
 export type ConstantExpression = {
@@ -201,7 +189,6 @@ export type SourceExpression = {
     kind: 'source',
     isStateDependent: boolean,
     +evaluate: (globals: GlobalProperties, feature?: Feature, featureState?: FeatureState) => any,
-    +getPossibleOutputs: () => Array<any>
 };
 
 export type CameraExpression = {
@@ -216,7 +203,6 @@ export type CompositeExpression = {
     isStateDependent: boolean,
     +evaluate: (globals: GlobalProperties, feature?: Feature, featureState?: FeatureState) => any,
     +interpolationFactor: (input: number, lower: number, upper: number) => number,
-    +getPossibleOutputs: () => Array<any>,
     zoomStops: Array<number>
 };
 
