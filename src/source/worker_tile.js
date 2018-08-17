@@ -116,7 +116,6 @@ class WorkerTile {
                     sourceLayerIndex: sourceLayerIndex,
                     sourceID: this.source
                 });
-
                 bucket.populate(features, options);
                 featureIndex.bucketLayerIDs.push(family.map((l) => l.id));
             }
@@ -181,14 +180,16 @@ class WorkerTile {
                     if (bucket instanceof SymbolBucket) {
                         recalculateLayers(bucket.layers, this.zoom);
                         performSymbolLayout(bucket, glyphMap, glyphAtlas.positions, iconMap, imageAtlas.iconPositions, this.showCollisionBoxes);
-                    } else if (bucket instanceof LineBucket || bucket instanceof FillBucket || bucket instanceof FillExtrusionBucket) {
+                    } else if (bucket.hasPattern &&
+                        (bucket instanceof LineBucket ||
+                         bucket instanceof FillBucket ||
+                         bucket instanceof FillExtrusionBucket)) {
                         recalculateLayers(bucket.layers, this.zoom);
                         bucket.addFeatures(options, imageAtlas.patternPositions);
                     }
                 }
 
                 this.status = 'done';
-
                 callback(null, {
                     buckets: values(buckets).filter(b => !b.isEmpty()),
                     featureIndex,

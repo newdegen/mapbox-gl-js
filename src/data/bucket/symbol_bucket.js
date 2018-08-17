@@ -269,6 +269,7 @@ class SymbolBucket implements Bucket {
     iconsNeedLinear: boolean;
     bucketInstanceId: number;
     justReloaded: boolean;
+    hasPattern: boolean;
 
     textSizeData: SizeData;
     iconSizeData: SizeData;
@@ -302,6 +303,7 @@ class SymbolBucket implements Bucket {
         this.index = options.index;
         this.pixelRatio = options.pixelRatio;
         this.sourceLayerIndex = options.sourceLayerIndex;
+        this.hasPattern = false;
 
         const layer = this.layers[0];
         const unevaluatedLayoutValues = layer._unevaluatedLayout._values;

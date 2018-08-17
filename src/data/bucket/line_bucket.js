@@ -106,6 +106,7 @@ class LineBucket implements Bucket {
     indexArray: TriangleIndexArray;
     indexBuffer: IndexBuffer;
 
+    hasPattern: boolean;
     programConfigurations: ProgramConfigurationSet<LineStyleLayer>;
     segments: SegmentVector;
     uploaded: boolean;
@@ -117,6 +118,7 @@ class LineBucket implements Bucket {
         this.layerIds = this.layers.map(layer => layer.id);
         this.index = options.index;
         this.features = [];
+        this.hasPattern = false;
 
         this.layoutVertexArray = new LineLayoutArray();
         this.indexArray = new TriangleIndexArray();
@@ -129,10 +131,16 @@ class LineBucket implements Bucket {
         this.features = [];
 
         for (const layer of this.layers) {
-            const linePattern = layer.paint.get('line-pattern');
-            const images = linePattern.property.getPossibleOutputs();
-            for (const image of images) {
-                patterns[image] = true;
+            const patternProperty = layer.paint.get('line-pattern');
+            if (!patternProperty.isConstant()) {
+                this.hasPattern = true;
+            }
+
+            const constantPattern = patternProperty.constantOr(null);
+            if (constantPattern) {
+                this.hasPattern = true;
+                patterns[constantPattern.to] =  true;
+                patterns[constantPattern.from] =  true;
             }
         }
 
@@ -140,19 +148,43 @@ class LineBucket implements Bucket {
             if (!this.layers[0]._featureFilter(new EvaluationParameters(this.zoom), feature)) continue;
 
             const geometry = loadGeometry(feature);
-            const lineFeature: BucketFeature = {
+
+            const bucketFeature: BucketFeature = {
                 sourceLayerIndex: sourceLayerIndex,
                 index: index,
                 geometry: geometry,
                 properties: feature.properties,
-                type: feature.type
+                type: feature.type,
+                patterns: {}
             };
 
             if (typeof feature.id !== 'undefined') {
-                lineFeature.id = feature.id;
+                bucketFeature.id = feature.id;
             }
 
-            this.features.push(lineFeature);
+            if (this.hasPattern) {
+                for (const layer of this.layers) {
+                    const patternProperty = layer.paint.get('line-pattern');
+
+                    const patternPropertyValue = patternProperty.value;
+                    if (patternPropertyValue.kind !== "constant") {
+                        const min = patternPropertyValue.evaluate({zoom: this.zoom - 1}, feature, {});
+                        const mid = patternPropertyValue.evaluate({zoom: this.zoom}, feature, {});
+                        const max = patternPropertyValue.evaluate({zoom: this.zoom + 1}, feature, {});
+                        // add to patternDependencies
+                        patterns[min] = true;
+                        patterns[mid] = true;
+                        patterns[max] = true;
+
+                        // save for layout
+                        bucketFeature.patterns[layer.id] = { min, mid, max };
+                    }
+                }
+                this.features.push(bucketFeature);
+            } else {
+                this.addFeature(bucketFeature, geometry, index, {});
+            }
+
             options.featureIndex.insert(feature, geometry, index, sourceLayerIndex, this.index);
         }
     }

@@ -14,8 +14,7 @@ export default function validateExpression(options: any) {
         });
     }
 
-    if (options.expressionContext === 'property' && (options.propertyKey === 'text-font' ||
-        options.valueSpec["property-type"] === 'cross-faded-data-driven') &&
+    if (options.expressionContext === 'property' && (options.propertyKey === 'text-font') &&
         (expression.value: any)._styleExpression.expression.possibleOutputs().indexOf(undefined) !== -1) {
         return [new ValidationError(options.key, options.value, `Invalid data expression for "${options.propertyKey}". Output values must be contained as literals within the expression.`)];
     }

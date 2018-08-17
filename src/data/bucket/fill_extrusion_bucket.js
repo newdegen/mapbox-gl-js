@@ -22,6 +22,7 @@ import type {
     IndexedFeature,
     PopulateParameters
 } from '../bucket';
+
 import type FillExtrusionStyleLayer from '../../style/style_layer/fill_extrusion_style_layer';
 import type Context from '../../gl/context';
 import type IndexBuffer from '../../gl/index_buffer';
@@ -62,6 +63,7 @@ class FillExtrusionBucket implements Bucket {
     indexArray: TriangleIndexArray;
     indexBuffer: IndexBuffer;
 
+    hasPattern: boolean;
     programConfigurations: ProgramConfigurationSet<FillExtrusionStyleLayer>;
     segments: SegmentVector;
     uploaded: boolean;
@@ -73,6 +75,7 @@ class FillExtrusionBucket implements Bucket {
         this.layers = options.layers;
         this.layerIds = this.layers.map(layer => layer.id);
         this.index = options.index;
+        this.hasPattern = false;
 
         this.layoutVertexArray = new FillExtrusionLayoutArray();
         this.indexArray = new TriangleIndexArray();
@@ -84,33 +87,62 @@ class FillExtrusionBucket implements Bucket {
         const patterns = options.patternDependencies;
         this.features = [];
 
-        for (let i = 0; i < this.layers.length; i++) {
-            const layer = this.layers[i];
-            const fillExtrusionPattern = layer.paint.get('fill-extrusion-pattern');
-            const images = fillExtrusionPattern.property.getPossibleOutputs();
-            for (const image of images) {
-                patterns[image] = true;
+        for (const layer of this.layers) {
+            const patternProperty = layer.paint.get('fill-extrusion-pattern');
+            if (!patternProperty.isConstant()) {
+                this.hasPattern = true;
+            }
+
+            const constantPattern = patternProperty.constantOr(null);
+            if (constantPattern) {
+                this.hasPattern = true;
+                patterns[constantPattern.to] =  true;
+                patterns[constantPattern.from] =  true;
             }
         }
 
-
         for (const {feature, index, sourceLayerIndex} of features) {
-            if (this.layers[0]._featureFilter(new EvaluationParameters(this.zoom), feature)) {
-                const geometry = loadGeometry(feature);
-                const fillExtrusionFeature: BucketFeature = {
-                    sourceLayerIndex: sourceLayerIndex,
-                    index: index,
-                    geometry: geometry,
-                    properties: feature.properties,
-                    type: feature.type
-                };
+            if (!this.layers[0]._featureFilter(new EvaluationParameters(this.zoom), feature)) continue;
 
-                if (typeof feature.id !== 'undefined') {
-                    fillExtrusionFeature.id = feature.id;
-                }
-                this.features.push(fillExtrusionFeature);
-                options.featureIndex.insert(feature, geometry, index, sourceLayerIndex, this.index);
+            const geometry = loadGeometry(feature);
+
+            const bucketFeature: BucketFeature = {
+                sourceLayerIndex: sourceLayerIndex,
+                index: index,
+                geometry: geometry,
+                properties: feature.properties,
+                type: feature.type,
+                patterns: {}
+            };
+
+            if (typeof feature.id !== 'undefined') {
+                bucketFeature.id = feature.id;
             }
+
+            if (this.hasPattern) {
+                for (const layer of this.layers) {
+                    const patternProperty = layer.paint.get('fill-extrusion-pattern');
+
+                    const patternPropertyValue = patternProperty.value;
+                    if (patternPropertyValue.kind !== "constant") {
+                        const min = patternPropertyValue.evaluate({zoom: this.zoom - 1}, feature, {});
+                        const mid = patternPropertyValue.evaluate({zoom: this.zoom}, feature, {});
+                        const max = patternPropertyValue.evaluate({zoom: this.zoom + 1}, feature, {});
+                        // add to patternDependencies
+                        patterns[min] = true;
+                        patterns[mid] = true;
+                        patterns[max] = true;
+
+                        // save for layout
+                        bucketFeature.patterns[layer.id] = { min, mid, max };
+                    }
+                }
+                this.features.push(bucketFeature);
+            } else {
+                this.addFeature(bucketFeature, geometry, index, {});
+            }
+
+            options.featureIndex.insert(feature, geometry, index, sourceLayerIndex, this.index);
         }
     }
 

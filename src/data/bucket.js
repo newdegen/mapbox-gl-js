@@ -38,7 +38,8 @@ export type BucketFeature = {|
     geometry: Array<Array<Point>>,
     properties: Object,
     type: 1 | 2 | 3,
-    id?: any
+    id?: any,
+    +patterns: {[string]: {"min": string, "mid": string, "max": string}}
 |};
 
 /**
@@ -66,6 +67,7 @@ export type BucketFeature = {|
  */
 export interface Bucket {
     layerIds: Array<string>;
+    hasPattern: boolean;
     +layers: Array<any>;
     +stateDependentLayers: Array<any>;
 

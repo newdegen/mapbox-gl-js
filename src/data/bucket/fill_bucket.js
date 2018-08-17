@@ -46,6 +46,7 @@ class FillBucket implements Bucket {
     indexArray2: LineIndexArray;
     indexBuffer2: IndexBuffer;
 
+    hasPattern: boolean;
     programConfigurations: ProgramConfigurationSet<FillStyleLayer>;
     segments: SegmentVector;
     segments2: SegmentVector;
@@ -58,6 +59,7 @@ class FillBucket implements Bucket {
         this.layers = options.layers;
         this.layerIds = this.layers.map(layer => layer.id);
         this.index = options.index;
+        this.hasPattern = false;
 
         this.layoutVertexArray = new FillLayoutArray();
         this.indexArray = new TriangleIndexArray();
@@ -72,32 +74,61 @@ class FillBucket implements Bucket {
         this.features = [];
 
         for (const layer of this.layers) {
-            const fillPattern = layer.paint.get('fill-pattern');
-            const images = fillPattern.property.getPossibleOutputs();
-            for (const image of images) {
-                patterns[image] = true;
+            const patternProperty = layer.paint.get('fill-pattern');
+            if (!patternProperty.isConstant()) {
+                this.hasPattern = true;
+            }
+
+            const constantPattern = patternProperty.constantOr(null);
+            if (constantPattern) {
+                this.hasPattern = true;
+                patterns[constantPattern.to] =  true;
+                patterns[constantPattern.from] =  true;
             }
         }
 
         for (const {feature, index, sourceLayerIndex} of features) {
-            if (this.layers[0]._featureFilter(new EvaluationParameters(this.zoom), feature)) {
+            if (!this.layers[0]._featureFilter(new EvaluationParameters(this.zoom), feature)) continue;
 
-                const geometry = loadGeometry(feature);
-                const fillFeature: BucketFeature = {
-                    sourceLayerIndex: sourceLayerIndex,
-                    index: index,
-                    geometry: geometry,
-                    properties: feature.properties,
-                    type: feature.type
-                };
+            const geometry = loadGeometry(feature);
 
-                if (typeof feature.id !== 'undefined') {
-                    fillFeature.id = feature.id;
-                }
+            const bucketFeature: BucketFeature = {
+                sourceLayerIndex: sourceLayerIndex,
+                index: index,
+                geometry: geometry,
+                properties: feature.properties,
+                type: feature.type,
+                patterns: {}
+            };
 
-                this.features.push(fillFeature);
-                options.featureIndex.insert(feature, geometry, index, sourceLayerIndex, this.index);
+            if (typeof feature.id !== 'undefined') {
+                bucketFeature.id = feature.id;
             }
+
+            if (this.hasPattern) {
+                for (const layer of this.layers) {
+                    const patternProperty = layer.paint.get('fill-pattern');
+
+                    const patternPropertyValue = patternProperty.value;
+                    if (patternPropertyValue.kind !== "constant") {
+                        const min = patternPropertyValue.evaluate({zoom: this.zoom - 1}, feature, {});
+                        const mid = patternPropertyValue.evaluate({zoom: this.zoom}, feature, {});
+                        const max = patternPropertyValue.evaluate({zoom: this.zoom + 1}, feature, {});
+                        // add to patternDependencies
+                        patterns[min] = true;
+                        patterns[mid] = true;
+                        patterns[max] = true;
+
+                        // save for layout
+                        bucketFeature.patterns[layer.id] = { min, mid, max };
+                    }
+                }
+                this.features.push(bucketFeature);
+            } else {
+                this.addFeature(bucketFeature, geometry, index, {});
+            }
+
+            options.featureIndex.insert(feature, geometry, index, sourceLayerIndex, this.index);
         }
     }
 

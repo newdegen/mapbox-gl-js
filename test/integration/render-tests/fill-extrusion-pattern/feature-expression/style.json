@@ -14,7 +14,7 @@
           {
             "type": "Feature",
             "properties": {
-              "property": 10
+              "property": "generic_icon"
             },
             "geometry": {
               "type": "Polygon",
@@ -47,7 +47,7 @@
           {
             "type": "Feature",
             "properties": {
-              "property": 20
+              "property": "generic_metro"
             },
             "geometry": {
               "type": "Polygon",
@@ -90,7 +90,7 @@
       "type": "fill-extrusion",
       "source": "geojson",
       "paint": {
-        "fill-extrusion-pattern": ["case", ["==",["get", "property"], 10], "generic_icon", "generic_metro"],
+        "fill-extrusion-pattern": ["get", "property"],
         "fill-extrusion-height": 10
       }
     }
