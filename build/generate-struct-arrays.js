@@ -51,7 +51,10 @@ function normalizeMembers(members, usedTypes) {
 // - If necessary, write the StructArrayLayout_* class for the given layout
 // - If `includeStructAccessors`, write the fancy subclass
 // - Add an entry for `name` in the array type registry
-function createStructArrayType(name: string, layout: StructArrayLayout, includeStructAccessors: boolean = false) {
+function createStructArrayType(name: string,
+                               layout: StructArrayLayout,
+                               includeStructAccessors: boolean = false,
+                               nonTransferredMembers?: Array<string>) {
     const hasAnchorPoint = layout.members.some(m => m.name === 'anchorPointX');
 
     // create the underlying StructArrayLayout class exists
@@ -68,7 +71,8 @@ function createStructArrayType(name: string, layout: StructArrayLayout, includeS
             usedTypes,
             hasAnchorPoint,
             layoutClass,
-            includeStructAccessors
+            includeStructAccessors,
+            nonTransferredMembers
         });
     } else {
         arrayTypeEntries.add(`${layoutClass} as ${arrayClass}`);
@@ -163,7 +167,7 @@ createStructArrayType(`collision_box_layout`, collisionBoxLayout);
 createStructArrayType(`collision_circle_layout`, collisionCircleLayout);
 createStructArrayType(`collision_vertex`, collisionVertexAttributes);
 createStructArrayType('placed_symbol', placement, true);
-createStructArrayType('symbol_instance', symbolInstance, true);
+createStructArrayType('symbol_instance', symbolInstance, true, ['crossTileID']);
 createStructArrayType('glyph_offset', glyphOffset, true);
 createStructArrayType('symbol_line_vertex', lineVertex, true);
 

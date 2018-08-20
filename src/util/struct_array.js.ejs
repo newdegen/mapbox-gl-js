@@ -6,7 +6,8 @@ const {
     usedTypes,
     hasAnchorPoint,
     layoutClass,
-    includeStructAccessors
+    includeStructAccessors,
+    nonTransferredMembers
 } = locals
 
 const StructTypeClass = arrayClass.replace('Array', 'Struct');
@@ -37,6 +38,23 @@ class <%=StructTypeClass%> extends Struct {
 <%  }
     if (hasAnchorPoint) { -%>
     anchorPoint: Point;
+<%  }
+  if (nonTransferredMembers) {
+        // non-transferred member declarations
+        for (const name of nonTransferredMembers) {-%>
+    <%=name%>s: Array<number>;
+<%      } -%>
+    index: number;
+
+    constructor(structArray: StructArray,
+                index: number,
+                <%-nonTransferredMembers.map(name => `${name}s: Array<number>`).join(',\n')%>) {
+        super(structArray, index);
+        <% for (const name of nonTransferredMembers) {-%>
+this.<%=name%>s = <%=name%>s;
+        <% } -%>
+this.index = index;
+    }
 <%  } -%>
 <%
 for (const {name, member, component} of components) {
@@ -55,6 +73,14 @@ if (hasAnchorPoint) {
     get anchorPoint() { return new Point(this.anchorPointX, this.anchorPointY); }
 <%
 }
+if (nonTransferredMembers) {
+        // non-transferred member declarations
+        for (const name of nonTransferredMembers) {
+-%>
+    get <%=name%>() { return this.<%=name%>s[this.index]; }
+    set <%=name%>(x) { this.<%=name%>s[this.index] = x; }
+<%      }
+    }
 -%>
 }
 
@@ -70,6 +96,25 @@ export type <%=StructTypeClass.replace('Struct', '')%> = <%=StructTypeClass%>;
  * @private
  */
 export class <%=StructArrayClass%> extends <%=StructArrayLayoutClass%> {
+<%  if (nonTransferredMembers) {
+        // non-transferred member declarations
+        for (const name of nonTransferredMembers) {
+-%>
+    <%=name%>s: Array<number>;
+<%      } -%>
+
+    _initializeNonTransferables() {
+<%      for (const name of nonTransferredMembers) {
+-%>
+        this.<%=name%>s = [];
+        for (let i = 0; i < this.length; i++) {
+            this.<%=name%>s.push(0);
+        }
+<%      } -%>
+    }
+
+<%  }
+-%>
 <%
 if (StructArrayClass === 'GlyphOffsetArray' || StructArrayClass === 'SymbolLineVertexArray') {
     // component getters
@@ -98,7 +143,11 @@ if (includeStructAccessors) {
      */
     get(index: number): <%=StructTypeClass%> {
         assert(!this.isTransferred);
+<%  if (nonTransferredMembers) {-%>
+        return new <%=StructTypeClass%>(this, index, <%-nonTransferredMembers.map(name => `this.${name}s`).join(',')%>);
+<%  } else {-%>
         return new <%=StructTypeClass%>(this, index);
+<%  }-%>
     }
 <%
 }

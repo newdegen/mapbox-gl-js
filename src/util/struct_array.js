@@ -133,6 +133,8 @@ class StructArray {
         structArray.length = input.length;
         structArray.capacity = input.arrayBuffer.byteLength / structArray.bytesPerElement;
         structArray._refreshViews();
+        structArray._initializeNonTransferables();
+
         return structArray;
     }
 
@@ -187,6 +189,14 @@ class StructArray {
      */
     _refreshViews() {
         throw new Error('_refreshViews() must be implemented by each concrete StructArray layout');
+    }
+
+    /**
+     * Create arrays of non-transferrable items to be access in parallel with
+     * the TypedArray items
+     */
+    _initializeNonTransferables() {
+        // No-op unless implementation overrides
     }
 }
 
