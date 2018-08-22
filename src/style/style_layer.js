@@ -179,7 +179,7 @@ class StyleLayer extends Evented {
     }
 
     recalculate(parameters: EvaluationParameters) {
-        this._crossfadeParameters = parameters.getCrossfadeParameters();
+        this._crossfadeParameters = parameters.getCrossfadeParameters ? parameters.getCrossfadeParameters() : null;
         if (this._unevaluatedLayout) {
             (this: any).layout = this._unevaluatedLayout.possiblyEvaluate(parameters);
         }

@@ -116,6 +116,7 @@ class WorkerTile {
                     sourceLayerIndex: sourceLayerIndex,
                     sourceID: this.source
                 });
+
                 bucket.populate(features, options);
                 featureIndex.bucketLayerIDs.push(family.map((l) => l.id));
             }

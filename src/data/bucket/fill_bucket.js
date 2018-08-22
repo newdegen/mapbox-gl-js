@@ -6,13 +6,12 @@ import { members as layoutAttributes } from './fill_attributes';
 import SegmentVector from '../segment';
 import { ProgramConfigurationSet } from '../program_configuration';
 import { LineIndexArray, TriangleIndexArray } from '../index_array_type';
-import loadGeometry from '../load_geometry';
 import earcut from 'earcut';
 import classifyRings from '../../util/classify_rings';
 import assert from 'assert';
 const EARCUT_MAX_RINGS = 500;
 import { register } from '../../util/web_worker_transfer';
-import EvaluationParameters from '../../style/evaluation_parameters';
+import addPatternFeatures from './pattern_bucket_features';
 
 import type {
     Bucket,
@@ -70,65 +69,10 @@ class FillBucket implements Bucket {
     }
 
     populate(features: Array<IndexedFeature>, options: PopulateParameters) {
-        const patterns = options.patternDependencies;
-        this.features = [];
-
-        for (const layer of this.layers) {
-            const patternProperty = layer.paint.get('fill-pattern');
-            if (!patternProperty.isConstant()) {
-                this.hasPattern = true;
-            }
-
-            const constantPattern = patternProperty.constantOr(null);
-            if (constantPattern) {
-                this.hasPattern = true;
-                patterns[constantPattern.to] =  true;
-                patterns[constantPattern.from] =  true;
-            }
-        }
-
-        for (const {feature, index, sourceLayerIndex} of features) {
-            if (!this.layers[0]._featureFilter(new EvaluationParameters(this.zoom), feature)) continue;
-
-            const geometry = loadGeometry(feature);
-
-            const bucketFeature: BucketFeature = {
-                sourceLayerIndex: sourceLayerIndex,
-                index: index,
-                geometry: geometry,
-                properties: feature.properties,
-                type: feature.type,
-                patterns: {}
-            };
-
-            if (typeof feature.id !== 'undefined') {
-                bucketFeature.id = feature.id;
-            }
-
-            if (this.hasPattern) {
-                for (const layer of this.layers) {
-                    const patternProperty = layer.paint.get('fill-pattern');
-
-                    const patternPropertyValue = patternProperty.value;
-                    if (patternPropertyValue.kind !== "constant") {
-                        const min = patternPropertyValue.evaluate({zoom: this.zoom - 1}, feature, {});
-                        const mid = patternPropertyValue.evaluate({zoom: this.zoom}, feature, {});
-                        const max = patternPropertyValue.evaluate({zoom: this.zoom + 1}, feature, {});
-                        // add to patternDependencies
-                        patterns[min] = true;
-                        patterns[mid] = true;
-                        patterns[max] = true;
-
-                        // save for layout
-                        bucketFeature.patterns[layer.id] = { min, mid, max };
-                    }
-                }
-                this.features.push(bucketFeature);
-            } else {
-                this.addFeature(bucketFeature, geometry, index, {});
-            }
-
-            options.featureIndex.insert(feature, geometry, index, sourceLayerIndex, this.index);
+        this.features = addPatternFeatures('fill', this.zoom, this.layers, features,
+                                            options, this.index, this.addFeature.bind(this));
+        if (this.features.length) {
+            this.hasPattern = true;
         }
     }
 
