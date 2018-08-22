@@ -71,7 +71,7 @@ export default function drawLine(painter: Painter, sourceCache: SourceCache, lay
             if (posTo && posFrom) programConfiguration.setConstantPatternPositions(posTo, posFrom);
         }
 
-        const uniformValues = dasharray ? lineSDFUniformValues(painter, tile, layer, dasharray) :
+        const uniformValues = dasharray ? lineSDFUniformValues(painter, tile, layer, dasharray, crossfade) :
             image ? linePatternUniformValues(painter, tile, layer, crossfade) :
             gradient ? lineGradientUniformValues(painter, tile, layer) :
             lineUniformValues(painter, tile, layer);

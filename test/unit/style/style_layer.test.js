@@ -3,6 +3,7 @@ import createStyleLayer from '../../../src/style/create_style_layer';
 import FillStyleLayer from '../../../src/style/style_layer/fill_style_layer';
 import { extend } from '../../../src/util/util';
 import Color from '../../../src/style-spec/util/color';
+import EvaluationParameters from '../../../src/style/evaluation_parameters';
 
 test('StyleLayer', (t) => {
     t.test('instantiates the correct subclass', (t) => {
@@ -55,7 +56,7 @@ test('StyleLayer#setPaintProperty', (t) => {
 
         layer.setPaintProperty('background-color', null);
         layer.updateTransitions({});
-        layer.recalculate({zoom: 0, zoomHistory: {}});
+        layer.recalculate(new EvaluationParameters({zoom: 0, zoomHistory: {}}));
 
         t.deepEqual(layer.paint.get('background-color'), new Color(0, 0, 0, 1));
         t.equal(layer.getPaintProperty('background-color'), undefined);
@@ -139,12 +140,12 @@ test('StyleLayer#setPaintProperty', (t) => {
 
         layer.setPaintProperty('fill-outline-color', '#f00');
         layer.updateTransitions({});
-        layer.recalculate({zoom: 0, zoomHistory: {}});
+        layer.recalculate(new EvaluationParameters({zoom: 0, zoomHistory: {}}));
         t.deepEqual(layer.paint.get('fill-outline-color').value, {kind: 'constant', value: new Color(1, 0, 0, 1)});
 
         layer.setPaintProperty('fill-outline-color', undefined);
         layer.updateTransitions({});
-        layer.recalculate({zoom: 0, zoomHistory: {}});
+        layer.recalculate(new EvaluationParameters({zoom: 0, zoomHistory: {}}));
         t.deepEqual(layer.paint.get('fill-outline-color').value, {kind: 'constant', value: new Color(0, 0, 1, 1)});
 
         t.end();
@@ -164,17 +165,17 @@ test('StyleLayer#setPaintProperty', (t) => {
         // to re-set it, StyleTransition#calculate() attempts interpolation
         layer.setPaintProperty('fill-outline-color', '#f00');
         layer.updateTransitions({});
-        layer.recalculate({zoom: 0, zoomHistory: {}});
+        layer.recalculate(new EvaluationParameters({zoom: 0, zoomHistory: {}}));
 
         layer.setPaintProperty('fill-outline-color', undefined);
         layer.updateTransitions({});
-        layer.recalculate({zoom: 0, zoomHistory: {}});
+        layer.recalculate(new EvaluationParameters({zoom: 0, zoomHistory: {}}));
 
         // re-set fill-outline-color and get its value, triggering the attempt
         // to interpolate between undefined and #f00
         layer.setPaintProperty('fill-outline-color', '#f00');
         layer.updateTransitions({});
-        layer.recalculate({zoom: 0, zoomHistory: {}});
+        layer.recalculate(new EvaluationParameters({zoom: 0, zoomHistory: {}}));
 
         layer.paint.get('fill-outline-color');
 
@@ -247,7 +248,7 @@ test('StyleLayer#setLayoutProperty', (t) => {
         });
 
         layer.setLayoutProperty('text-transform', null);
-        layer.recalculate({zoom: 0, zoomHistory: {}});
+        layer.recalculate(new EvaluationParameters({zoom: 0, zoomHistory: {}}));
 
         t.deepEqual(layer.layout.get('text-transform').value, {kind: 'constant', value: 'none'});
         t.equal(layer.getLayoutProperty('text-transform'), undefined);

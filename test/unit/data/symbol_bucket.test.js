@@ -14,6 +14,7 @@ import { OverscaledTileID } from '../../../src/source/tile_id';
 import Tile from '../../../src/source/tile';
 import CrossTileSymbolIndex from '../../../src/symbol/cross_tile_symbol_index';
 import FeatureIndex from '../../../src/data/feature_index';
+import EvaluationParameters from '../../../src/style/evaluation_parameters';
 
 // Load a point feature from fixture tile.
 const vt = new VectorTile(new Protobuf(fs.readFileSync(path.join(__dirname, '/../../fixtures/mbsv5-6-18-23.vector.pbf'))));
@@ -36,7 +37,7 @@ function bucketSetup() {
         layout: { 'text-font': ['Test'], 'text-field': 'abcde' },
         filter: featureFilter()
     });
-    layer.recalculate({zoom: 0, zoomHistory: {}});
+    layer.recalculate(new EvaluationParameters({zoom: 0, zoomHistory: {}}));
 
     return new SymbolBucket({
         overscaling: 1,

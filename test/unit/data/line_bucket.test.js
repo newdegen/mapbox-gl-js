@@ -7,6 +7,7 @@ import Point from '@mapbox/point-geometry';
 import segment from '../../../src/data/segment';
 import LineBucket from '../../../src/data/bucket/line_bucket';
 import LineStyleLayer from '../../../src/style/style_layer/line_style_layer';
+import EvaluationParameters from '../../../src/style/evaluation_parameters';
 
 // Load a line feature from fixture tile.
 const vt = new VectorTile(new Protobuf(fs.readFileSync(path.join(__dirname, '/../../fixtures/mbsv5-6-18-23.vector.pbf'))));
@@ -22,7 +23,7 @@ function createLine(numPoints) {
 
 test('LineBucket', (t) => {
     const layer = new LineStyleLayer({ id: 'test', type: 'line' });
-    layer.recalculate({zoom: 0, zoomHistory: {}});
+    layer.recalculate(new EvaluationParameters({zoom: 0, zoomHistory: {}}));
 
     const bucket = new LineBucket({ layers: [layer] });
 
@@ -105,7 +106,7 @@ test('LineBucket segmentation', (t) => {
     t.stub(segment, 'MAX_VERTEX_ARRAY_LENGTH').value(256);
 
     const layer = new LineStyleLayer({ id: 'test', type: 'line' });
-    layer.recalculate({zoom: 0, zoomHistory: {}});
+    layer.recalculate(new EvaluationParameters({zoom: 0, zoomHistory: {}}));
 
     const bucket = new LineBucket({ layers: [layer] });
 

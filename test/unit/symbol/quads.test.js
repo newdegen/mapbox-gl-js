@@ -2,10 +2,11 @@ import { test } from 'mapbox-gl-js-test';
 import { getIconQuads } from '../../../src/symbol/quads';
 import Anchor from '../../../src/symbol/anchor';
 import SymbolStyleLayer from '../../../src/style/style_layer/symbol_style_layer';
+import EvaluationParameters from '../../../src/style/evaluation_parameters';
 
 function createLayer(layer) {
     const result = new SymbolStyleLayer(layer);
-    result.recalculate({zoom: 0, zoomHistory: {}});
+    result.recalculate(new EvaluationParameters({zoom: 0, zoomHistory: {}}));
     return result;
 }
 

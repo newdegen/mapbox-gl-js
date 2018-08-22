@@ -10,7 +10,6 @@ import { register } from '../util/web_worker_transfer';
 import EvaluationParameters from './evaluation_parameters';
 
 import type {StylePropertySpecification} from '../style-spec/style-spec';
-import type {CrossFaded} from './cross_faded';
 import type {
     TransitionSpecification,
     PropertyValueSpecification
@@ -25,6 +24,11 @@ import type {
 } from '../style-spec/expression';
 
 type TimePoint = number;
+
+export type CrossFaded<T> = {
+    to: T,
+    from: T
+};
 
 /**
  * Implements a number of classes that define state and behavior for paint and layout properties, most
@@ -627,12 +631,7 @@ export class CrossFadedDataDrivenProperty<T> extends DataDrivenProperty<?CrossFa
 
     _calculate(min: T, mid: T, max: T, parameters: EvaluationParameters): CrossFaded<T> {
         const z = parameters.zoom;
-        const fraction = z - Math.floor(z);
-        const t = parameters.crossFadingFactor();
-
-        return z > parameters.zoomHistory.lastIntegerZoom ?
-            { from: min, to: mid, fromScale: 2, toScale: 1, t: fraction + (1 - fraction) * t } :
-            { from: max, to: mid, fromScale: 0.5, toScale: 1, t: 1 - (1 - t) * fraction };
+        return z > parameters.zoomHistory.lastIntegerZoom ? { from: min, to: mid } : { from: max, to: mid };
     }
 
     interpolate(a: PossiblyEvaluatedPropertyValue<?CrossFaded<T>>): PossiblyEvaluatedPropertyValue<?CrossFaded<T>> {
@@ -670,11 +669,7 @@ export class CrossFadedProperty<T> implements Property<T, ?CrossFaded<T>> {
 
     _calculate(min: T, mid: T, max: T, parameters: EvaluationParameters): ?CrossFaded<T> {
         const z = parameters.zoom;
-        const fraction = z - Math.floor(z);
-        const t = parameters.crossFadingFactor();
-        return z > parameters.zoomHistory.lastIntegerZoom ?
-            { from: min, to: mid, fromScale: 2, toScale: 1, t: fraction + (1 - fraction) * t } :
-            { from: max, to: mid, fromScale: 0.5, toScale: 1, t: 1 - (1 - t) * fraction };
+        return z > parameters.zoomHistory.lastIntegerZoom ? { from: min, to: mid } : { from: max, to: mid };
     }
 
     interpolate(a: ?CrossFaded<T>): ?CrossFaded<T> {

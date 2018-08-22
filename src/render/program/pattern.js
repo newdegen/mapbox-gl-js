@@ -12,7 +12,7 @@ import browser from '../../util/browser';
 
 import type Painter from '../painter';
 import type {OverscaledTileID} from '../../source/tile_id';
-import type {CrossFaded} from '../../style/cross_faded';
+import type {CrossFaded} from '../../style/properties';
 import type {CrossfadeParameters} from '../../style/style_layer';
 import type {UniformValues} from '../uniform_binding';
 import type Tile from '../../source/tile';
@@ -68,7 +68,7 @@ function patternUniformValues(crossfade: CrossfadeParameters, painter: Painter,
     };
 }
 
-function bgPatternUniformValues(image: CrossFaded<string>, painter: Painter,
+function bgPatternUniformValues(image: CrossFaded<string>, crossfade: CrossfadeParameters, painter: Painter,
         tile: {tileID: OverscaledTileID, tileSize: number}
 ): UniformValues<BackgroundPatternUniformsType> {
     const imagePosA = painter.imageManager.getPattern(image.from);
@@ -89,11 +89,11 @@ function bgPatternUniformValues(image: CrossFaded<string>, painter: Painter,
         'u_pattern_tl_b': (imagePosB: any).tl,
         'u_pattern_br_b': (imagePosB: any).br,
         'u_texsize': [width, height],
-        'u_mix': image.t,
+        'u_mix': crossfade.t,
         'u_pattern_size_a': (imagePosA: any).displaySize,
         'u_pattern_size_b': (imagePosB: any).displaySize,
-        'u_scale_a': image.fromScale,
-        'u_scale_b': image.toScale,
+        'u_scale_a': crossfade.fromScale,
+        'u_scale_b': crossfade.toScale,
         'u_tile_units_to_pixels': 1 / pixelsToTileUnits(tile, 1, painter.transform.tileZoom),
         // split the pixel coord into two pairs of 16 bit numbers. The glsl spec only guarantees 16 bits of precision.
         'u_pixel_coord_upper': [pixelX >> 16, pixelY >> 16],

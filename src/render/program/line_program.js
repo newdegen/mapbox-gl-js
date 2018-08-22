@@ -15,7 +15,7 @@ import type Context from '../../gl/context';
 import type {UniformValues, UniformLocations} from '../uniform_binding';
 import type Transform from '../../geo/transform';
 import type Tile from '../../source/tile';
-import type {CrossFaded} from '../../style/cross_faded';
+import type {CrossFaded} from '../../style/properties';
 import type LineStyleLayer from '../../style/style_layer/line_style_layer';
 import type Painter from '../painter';
 import type {CrossfadeParameters} from '../../style/style_layer';
@@ -147,7 +147,8 @@ const lineSDFUniformValues = (
     painter: Painter,
     tile: Tile,
     layer: LineStyleLayer,
-    dasharray: CrossFaded<Array<number>>
+    dasharray: CrossFaded<Array<number>>,
+    crossfade: CrossfadeParameters
 ): UniformValues<LineSDFUniformsType> => {
     const transform = painter.transform;
     const lineAtlas = painter.lineAtlas;
@@ -158,8 +159,8 @@ const lineSDFUniformValues = (
     const posA = lineAtlas.getDash(dasharray.from, round);
     const posB = lineAtlas.getDash(dasharray.to, round);
 
-    const widthA = posA.width * dasharray.fromScale;
-    const widthB = posB.width * dasharray.toScale;
+    const widthA = posA.width * crossfade.fromScale;
+    const widthB = posB.width * crossfade.toScale;
 
     return extend(lineUniformValues(painter, tile, layer), {
         'u_patternscale_a': [tileRatio / widthA, -posA.height / 2],
@@ -168,7 +169,7 @@ const lineSDFUniformValues = (
         'u_image': 0,
         'u_tex_y_a': posA.y,
         'u_tex_y_b': posB.y,
-        'u_mix': dasharray.t
+        'u_mix': crossfade.t
     });
 };
 

@@ -7,6 +7,7 @@ import Point from '@mapbox/point-geometry';
 import segment from '../../../src/data/segment';
 import FillBucket from '../../../src/data/bucket/fill_bucket';
 import FillStyleLayer from '../../../src/style/style_layer/fill_style_layer';
+import EvaluationParameters from '../../../src/style/evaluation_parameters';
 
 // Load a fill feature from fixture tile.
 const vt = new VectorTile(new Protobuf(fs.readFileSync(path.join(__dirname, '/../../fixtures/mbsv5-6-18-23.vector.pbf'))));
@@ -22,7 +23,7 @@ function createPolygon(numPoints) {
 
 test('FillBucket', (t) => {
     const layer = new FillStyleLayer({ id: 'test', type: 'fill', layout: {} });
-    layer.recalculate({zoom: 0, zoomHistory: {}});
+    layer.recalculate(new EvaluationParameters({zoom: 0, zoomHistory: {}}));
 
     const bucket = new FillBucket({ layers: [layer] });
 
@@ -55,7 +56,7 @@ test('FillBucket segmentation', (t) => {
             'fill-color': ['to-color', ['get', 'foo'], '#000']
         }
     });
-    layer.recalculate({zoom: 0, zoomHistory: {}});
+    layer.recalculate(new EvaluationParameters({zoom: 0, zoomHistory: {}}));
 
     const bucket = new FillBucket({ layers: [layer] });
 
